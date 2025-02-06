@@ -125,8 +125,8 @@ pub fn unmarshalJSON_HEADER(allocator: Allocator, json: []const u8) !Header {
 
     return Header.init(
         allocator,
-        typ orelse .JWT,
-        alg orelse .EDDSA, //make hint to make arguments on each line
+        typ.?,
+        alg.?, //make hint to make arguments on each line
         sigOpts orelse .{},
     );
 }
