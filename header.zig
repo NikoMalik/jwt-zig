@@ -2,15 +2,18 @@ const std = @import("std");
 // const json = std.json;
 const algo = @import("algorithm.zig");
 const base64url = std.base64.url_safe_no_pad;
+const Allocator = std.mem.Allocator;
+
+var count_free: usize = 0;
 
 pub const Header = struct {
-    allocator: std.mem.Allocator,
+    allocator: Allocator,
 
-    typ: ?algo.Type,
-    alg: ?algo.Algorithm,
+    typ: algo.Type,
+    alg: algo.Algorithm,
     options: SignatureOptions,
 
-    pub fn init(alloc: std.mem.Allocator, typ: ?algo.Type, alg: ?algo.Algorithm, options: SignatureOptions) Header {
+    pub fn init(alloc: Allocator, typ: algo.Type, alg: algo.Algorithm, options: SignatureOptions) Header {
         return Header{
             .options = options,
             .typ = typ,
@@ -27,16 +30,12 @@ pub const Header = struct {
         try writer.writeAll("{");
 
         try writer.writeAll("\"alg\":\"");
-        try writer.writeAll(h.alg.?.string());
+        try writer.writeAll(h.alg.string());
         try writer.writeAll("\"");
 
-        if (h.typ) |typ| {
-            try writer.writeAll(",\"typ\":\"");
-            try writer.writeAll(typ.string());
-            try writer.writeAll("\"");
-        } else {
-            try writer.writeAll(",\"typ\":\"JWT\"");
-        }
+        try writer.writeAll(",\"typ\":\"");
+        try writer.writeAll(h.typ.string());
+        try writer.writeAll("\"");
 
         if (h.options.cty) |cty| {
             try writer.writeAll(",\"cty\":\"");
@@ -56,7 +55,15 @@ pub const Header = struct {
     }
 
     pub fn unmarshalHeader(h: *const Header) ![]const u8 {
+        //make copy to change value? idk how to make this more efficient
+
         // JSON PRESENTATION IN STRING
+        if (h.typ == .JWT and h.alg == .EDDSA and h.options.cty == null and h.options.kid == null) {
+            if (getAllocatedHeader(h.alg, h.typ)) |prealloc| {
+                return prealloc;
+            }
+        }
+
         const info = h.marshalJSON() catch "";
 
         // CALCULATING SAFETY LEN FOR BASE64URL
@@ -68,8 +75,16 @@ pub const Header = struct {
 
         // ENCODING
         const header_base64 = base64url.Encoder.encode(dest, info);
+        count_free += 1;
         //RETURN RESULT
         return header_base64;
+    }
+
+    pub fn free_Base64URL(h: *const Header, dest: []const u8) void {
+        if (count_free > 0) {
+            h.allocator.free(dest);
+            count_free -= 1;
+        }
     }
 };
 
@@ -90,7 +105,7 @@ const HeaderJSON = struct {
     cty: ?[]const u8 = null,
 };
 
-pub fn unmarshalJSON(allocator: std.mem.Allocator, json: []const u8) !Header {
+pub fn unmarshalJSON_HEADER(allocator: Allocator, json: []const u8) !Header {
     var parsed = try std.json.parseFromSlice(HeaderJSON, allocator, json, .{
         .ignore_unknown_fields = true,
     });
@@ -105,10 +120,27 @@ pub fn unmarshalJSON(allocator: std.mem.Allocator, json: []const u8) !Header {
         };
     }
 
+    const typ = if (parsed.value.typ) |t| algo.Type.toType(t) else null;
+    const alg = if (parsed.value.alg) |a| algo.Algorithm.toAlgo(a) else null;
+
     return Header.init(
         allocator,
-        if (parsed.value.typ) |t| algo.Type.toType(t) else null,
-        if (parsed.value.alg) |a| algo.Algorithm.toAlgo(a) else null, //make hint to make arguments on each line
+        typ orelse .JWT,
+        alg orelse .EDDSA, //make hint to make arguments on each line
         sigOpts orelse .{},
     );
+}
+
+pub const allocatedHeaders = struct {
+    pub const EDDSA = "eyJhbGciOiJFRERTQSIsInR5cCI6IkpXVCJ9";
+};
+
+pub fn getAllocatedHeader(alg: algo.Algorithm, typ: algo.Type) ?[]const u8 {
+    return switch (alg) {
+        .EDDSA => switch (typ) {
+            .JWT => allocatedHeaders.EDDSA,
+            else => null,
+        },
+        else => null,
+    };
 }

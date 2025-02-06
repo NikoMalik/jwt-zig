@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const eddsa = std.crypto.sign.Ed25519;
+
 //
 
 pub const Algorithm = union(enum) {
@@ -66,6 +68,7 @@ pub const Algorithm = union(enum) {
             .HS256 => std.crypto.auth.hmac.sha2.HmacSha256,
             .HS384 => std.crypto.auth.hmac.sha2.HmacSha384,
             .HS512 => std.crypto.auth.hmac.sha2.HmacSha512,
+            .EDDSA => eddsa,
             else => unreachable,
         };
     }
@@ -74,13 +77,11 @@ pub const Algorithm = union(enum) {
 pub const Type = union(enum) {
     JWT,
     JWS,
-    JWE,
 
     pub fn string(t: Type) []const u8 {
         return switch (t) {
             .JWT => "JWT",
             .JWS => "JWS",
-            .JWE => "JWE",
         };
     }
 
@@ -91,7 +92,6 @@ pub const Type = union(enum) {
         }{
             .{ .tag = "JWT", .value = Type.JWT },
             .{ .tag = "JWS", .value = Type.JWS },
-            .{ .tag = "JWE", .value = Type.JWE },
         };
 
         for (lookup) |entry| {

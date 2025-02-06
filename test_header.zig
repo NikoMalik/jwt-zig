@@ -5,12 +5,12 @@ const typ = @import("algorithm.zig");
 test "HeaderMarsh" {
     const alloc = std.heap.page_allocator;
 
-    const h = head.Header.init(alloc, typ.Type.JWS, typ.Algorithm.EDDSA, .{});
+    const h = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.EDDSA, .{});
 
     const marsh = try h.marshalJSON();
     std.debug.print("{s}\n", .{marsh});
 
-    const unmarshall = try head.unmarshalJSON(alloc, marsh);
+    const unmarshall = try head.unmarshalJSON_HEADER(alloc, marsh);
 
     std.debug.print("{any}\n", .{unmarshall});
 
@@ -18,18 +18,18 @@ test "HeaderMarsh" {
     // _ = resBase64;
 
     std.debug.print("{s}\n", .{resBase64});
-    h.allocator.free(resBase64);
+    h.free_Base64URL(resBase64);
 }
 
-test "Header Zero typ" {
+test "Header JWS" {
     const alloc = std.heap.page_allocator;
 
-    const h = head.Header.init(alloc, null, typ.Algorithm.EDDSA, .{});
+    const h = head.Header.init(alloc, typ.Type.JWS, typ.Algorithm.EDDSA, .{});
 
     const marsh = try h.marshalJSON();
     std.debug.print("{s}\n", .{marsh});
 
-    const unmarshall = try head.unmarshalJSON(alloc, marsh);
+    const unmarshall = try head.unmarshalJSON_HEADER(alloc, marsh);
 
     std.debug.print("{any}\n", .{unmarshall});
 
@@ -37,5 +37,5 @@ test "Header Zero typ" {
     // _ = resBase64;
     //
     std.debug.print("{s}\n", .{resBase64});
-    h.allocator.free(resBase64);
+    h.free_Base64URL(resBase64);
 }
