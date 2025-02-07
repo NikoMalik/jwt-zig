@@ -55,7 +55,6 @@ pub const Header = struct {
     }
 
     pub fn unmarshalHeader(h: *const Header) ![]const u8 {
-        //make copy to change value? idk how to make this more efficient
 
         // JSON PRESENTATION IN STRING
         if (h.typ == .JWT and h.alg == .EDDSA and h.options.cty == null and h.options.kid == null) {

@@ -62,6 +62,7 @@ pub const Payload = struct {
         if (p.iat != null) {
             return p.iat.?.time;
         }
+
         return null;
     }
 

@@ -8,9 +8,10 @@ const seedLen = std.crypto.sign.Ed25519.KeyPair.seed_length;
 const SecretKey = std.crypto.sign.Ed25519.SecretKey;
 const PublicKey = std.crypto.sign.Ed25519.PublicKey;
 const Signature = std.crypto.sign.Ed25519.Signature;
+const KeyPair = std.crypto.sign.Ed25519.KeyPair;
 
 pub const Eddsa = struct {
-    keyPaid: std.crypto.sign.Ed25519.KeyPair,
+    keyPaid: KeyPair,
 
     pub fn init(private_key: SecretKey, public_key: PublicKey) Eddsa {
         return Eddsa{ .keyPaid = .{
@@ -25,8 +26,13 @@ pub const Eddsa = struct {
             .keyPaid = kp,
         };
     }
-    pub fn initFromSecretKey(e: *const Eddsa, secret_key: SecretKey) !Eddsa {
-        return e.keyPaid.fromSecretKey(secret_key);
+    pub fn initFromSecretKey(secret_key: SecretKey) !Eddsa {
+        const key = try KeyPair.fromSecretKey(secret_key);
+        return Eddsa{ .keyPaid = key };
+    }
+
+    pub fn initFromSecret(secret_key: SecretKey) !KeyPair {
+        return try KeyPair.fromSecretKey(secret_key);
     }
 
     pub fn sign(e: *const Eddsa, message: []const u8) !Signature {
