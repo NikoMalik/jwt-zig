@@ -19,7 +19,7 @@ pub const Token = struct {
     allocator: Allocator,
     payload: *const pl.Payload,
     header: *const head.Header,
-    raw: ?[]const u8,
+    raw: ?[]u8,
     signature: ?[64]u8,
     sep1: usize,
     sep2: usize,
