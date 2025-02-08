@@ -9,22 +9,10 @@ const PublicKey = std.crypto.sign.Ed25519.PublicKey;
 const Signature = std.crypto.sign.Ed25519.Signature;
 const KeyPair = std.crypto.sign.Ed25519.KeyPair;
 
-const key_generic = union(enum) {
-    eddsa: KeyPair,
+const Key_cipr = struct {
+    var ed: KeyPair = undefined;
+    // var hmac: KeyPair = undefined;
 
-    fn init(k: KeyPair, count: usize) key_generic {
-        switch (count) {
-            0 => return key_generic{ .eddsa = k },
-            else => unreachable,
-        }
-    }
-
-    fn getKey(k: key_generic, count: usize) KeyPair {
-        switch (count) {
-            0 => return k.eddsa,
-            else => unreachable,
-        }
-    }
 };
 
 pub const Token = struct {
@@ -114,8 +102,8 @@ pub const Token = struct {
                     }
                     edd = try eddsa.Eddsa.initFromSecretKey(k);
                 } else {
-                    // std.debug.print("no key\n", .{});
                     edd = try eddsa.Eddsa.generateKeys();
+                    Key_cipr.ed = edd.keyPaid;
                 }
 
                 const sig = try edd.sign(sst);
@@ -135,16 +123,25 @@ pub const Token = struct {
             else => unreachable,
         }
     }
+    //public key for eddsa
 
-    pub fn verifyToken(t: *Token, key: ?[]u8) !bool {
-        _ = key;
+    pub fn verifyToken(t: *Token, comptime KeyType: type, key: ?KeyType) !bool {
         switch (t.header.alg) {
             .EDDSA => {
                 const sst = t.beforeSignature();
-                const signature = try Signature.fromBytes(t.signature.?);
-                const sig = try eddsa.Eddsa.verify(signature, sst, t.payload.unmsarshalPayload() catch "");
+                const signature = Signature.fromBytes(t.signature.?);
+
+                var sig: bool = undefined;
+                if (key) |k| {
+                    // std.debug.print("triggered not null\n", .{});
+                    sig = eddsa.Eddsa.verify(signature, sst, k);
+                } else {
+                    // std.debug.print("triggered null\n", .{});
+                    sig = eddsa.Eddsa.verify(signature, sst, Key_cipr.ed.public_key);
+                }
                 return sig;
             },
+            else => unreachable,
         }
     }
 };

@@ -4,6 +4,7 @@ const typ = @import("algorithm.zig");
 const p = @import("payload.zig");
 const date = @import("time.zig");
 const jwt = @import("jwt.zig");
+const PublicKey = std.crypto.sign.Ed25519.PublicKey;
 
 test "JWT EDDSA test " {
     const alloc = std.heap.page_allocator;
@@ -20,6 +21,8 @@ test "JWT EDDSA test " {
     var jwtToken = jwt.Token.init(alloc, &header, &payload);
 
     const sigmaToken = try jwtToken.signToken(std.crypto.sign.Ed25519.SecretKey, null);
+    const verify = try jwtToken.verifyToken(PublicKey, null);
+    std.debug.print("{any}\n", .{verify});
     // alloc.free(sigmaToken);
 
     std.debug.print("{s}\n", .{sigmaToken});
@@ -27,5 +30,7 @@ test "JWT EDDSA test " {
     const key = try jwtToken.generateKeyPair();
 
     const sigmaToken2 = try jwtToken.signToken(std.crypto.sign.Ed25519.SecretKey, key.secret_key);
+    const verify_not_null = try jwtToken.verifyToken(PublicKey, key.public_key);
+    std.debug.print("{any}\n", .{verify_not_null});
     std.debug.print("{s}\n", .{sigmaToken2});
 }

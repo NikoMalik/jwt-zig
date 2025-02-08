@@ -40,9 +40,8 @@ pub const Eddsa = struct {
     }
 
     pub fn verify(signature: Signature, message: []const u8, public_key: PublicKey) bool {
-        if (!signature.verify(message, public_key)) {
-            return false;
-        }
+        signature.verify(message, public_key) catch return false;
+        return true;
     }
 
     pub fn algo(e: *const Eddsa) _algo_.Algorithm {
