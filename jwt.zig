@@ -8,9 +8,11 @@ const SecretKey = std.crypto.sign.Ed25519.SecretKey;
 const PublicKey = std.crypto.sign.Ed25519.PublicKey;
 const Signature = std.crypto.sign.Ed25519.Signature;
 const KeyPair = std.crypto.sign.Ed25519.KeyPair;
+const HS256 = std.crypto.auth.hmac.sha2.HmacSha256;
 
 const Key_cipr = struct {
     var ed: KeyPair = undefined;
+    var hmac: [std.crypto.auth.hmac.sha2.HmacSha256.key_length]u8 = undefined;
     // var hmac: KeyPair = undefined;
 
 };
@@ -20,7 +22,7 @@ pub const Token = struct {
     payload: *const pl.Payload,
     header: *const head.Header,
     raw: ?[]u8,
-    signature: ?[64]u8,
+    signature: ?[]u8,
     sep1: usize,
     sep2: usize,
 
@@ -36,6 +38,25 @@ pub const Token = struct {
         };
     }
 
+    //HEADER BOOL IS HEAP ALLOCATED TRUE OR FALSE?
+    // PAYLOAD BOOL IS HEAP ALLOCATED TRUE OR FALSE?
+    pub fn deinit(self: *Token, header: bool, payload: bool) void {
+        if (self.raw) |ptr| {
+            self.allocator.free(ptr);
+            self.raw = null;
+        }
+        if (self.signature) |ptr| {
+            self.allocator.free(ptr);
+            self.signature = null;
+        }
+        if (header) {
+            self.allocator.destroy(self.header);
+        }
+        if (payload) {
+            self.allocator.destroy(self.payload);
+        }
+    }
+
     pub fn bytes(t: *Token) []const u8 {
         return t.raw.?;
     }
@@ -46,10 +67,23 @@ pub const Token = struct {
         t.sep2 = sep1 + 1 + sep2;
     }
 
-    pub fn generateKeyPair(t: *Token) !KeyPair {
+    pub fn setSignature(t: *Token, signature: []u8) void {
+        if (t.raw) |old_raw| {
+            t.allocator.free(old_raw);
+        }
+        t.signature = signature;
+    }
+
+    pub fn generateKeyPairEddsa(t: *Token) !KeyPair {
         _ = t;
         const kp = KeyPair.generate();
         return kp;
+    }
+    pub fn generateKeyPairHmac(t: *Token) ![HS256.key_length]u8 {
+        _ = t;
+        var hmac: [HS256.key_length]u8 = undefined;
+        std.crypto.random.bytes(&hmac);
+        return hmac;
     }
 
     pub fn beforeSignature(t: *Token) []const u8 {
@@ -83,9 +117,10 @@ pub const Token = struct {
         t.sep2 = writer.context.items.len;
         return js.toOwnedSlice();
     }
+
     //for EDDSA KEY IS PRIVATE KEY
     //FOR HMAC KEY IS KEY
-    pub fn signToken(t: *Token, comptime KeyType: type, key: ?KeyType) ![]const u8 {
+    pub fn signToken(t: *Token, key: ?[]u8) ![]const u8 {
         const sst = try t.signingString();
         var js = std.ArrayList(u8).init(t.allocator);
         defer js.deinit();
@@ -95,29 +130,58 @@ pub const Token = struct {
                 const writer = js.writer();
                 var edd: eddsa.Eddsa = undefined;
                 if (key) |k| {
-                    comptime {
-                        if (KeyType != std.crypto.sign.Ed25519.SecretKey) {
-                            @compileError("KeyType must be eddsa.Eddsa.SecretKey");
-                        }
+                    if (k.len != std.crypto.sign.Ed25519.SecretKey.encoded_length) {
+                        return error.InvalidKeySize;
                     }
-                    edd = try eddsa.Eddsa.initFromSecretKey(k);
+                    var ktemp: [64]u8 = undefined;
+                    @memcpy(&ktemp, k);
+                    edd = try eddsa.Eddsa.initFromSecretKey(try std.crypto.sign.Ed25519.SecretKey.fromBytes(ktemp));
                 } else {
                     edd = try eddsa.Eddsa.generateKeys();
                     Key_cipr.ed = edd.keyPaid;
                 }
 
                 const sig = try edd.sign(sst);
-                const sigBytes = sig.toBytes();
-                t.signature = sigBytes;
+                var sigBytes = sig.toBytes();
+                t.signature = try t.allocator.dupe(u8, &sigBytes);
 
                 const encodedLen = base64url.Encoder.calcSize(sigBytes.len);
                 const sigDest = try t.allocator.alloc(u8, encodedLen);
+                defer t.allocator.free(sigDest);
                 const encodedSig = base64url.Encoder.encode(sigDest, &sigBytes);
                 try writer.writeAll(sst);
                 try writer.writeByte('.');
                 try writer.writeAll(encodedSig);
                 const tokenRaw = try js.toOwnedSlice();
-                t.raw = tokenRaw;
+                t.raw = try t.allocator.dupe(u8, tokenRaw);
+
+                return tokenRaw;
+            },
+            .HS256 => {
+                const writer = js.writer();
+                var hmac: [HS256.mac_length]u8 = undefined;
+
+                if (key) |k| {
+                    HS256.create(&hmac, sst, k);
+                } else {
+                    var key_temp: [std.crypto.auth.hmac.sha2.HmacSha256.key_length]u8 = undefined;
+                    std.crypto.random.bytes(&key_temp);
+                    Key_cipr.hmac = key_temp;
+                    HS256.create(&hmac, sst, key_temp[0..]);
+                }
+                t.signature = try t.allocator.dupe(u8, &hmac);
+                // std.debug.print("hmac sign{any}\n", .{hmac});
+                // std.debug.print("signature{any}\n ", .{t.signature.?});
+                const encodedLen = base64url.Encoder.calcSize(hmac.len);
+                const sigDest = try t.allocator.alloc(u8, encodedLen);
+                defer t.allocator.free(sigDest);
+                const encodedSig = base64url.Encoder.encode(sigDest, &hmac);
+
+                try writer.writeAll(sst);
+                try writer.writeByte('.');
+                try writer.writeAll(encodedSig);
+                const tokenRaw = try js.toOwnedSlice();
+                t.raw = try t.allocator.dupe(u8, tokenRaw);
                 return tokenRaw;
             },
             else => unreachable,
@@ -125,21 +189,50 @@ pub const Token = struct {
     }
     //public key for eddsa
 
-    pub fn verifyToken(t: *Token, comptime KeyType: type, key: ?KeyType) !bool {
+    pub fn verifyToken(t: *Token, key: ?[]u8) !bool {
         switch (t.header.alg) {
             .EDDSA => {
+                if (t.signature.?.len != std.crypto.sign.Ed25519.Signature.encoded_length) {
+                    std.debug.print("triggered {d}\n", .{t.signature.?.len});
+                    return error.InvalidSignatureLength;
+                }
                 const sst = t.beforeSignature();
-                const signature = Signature.fromBytes(t.signature.?);
+                const _signature_: *[std.crypto.sign.Ed25519.Signature.encoded_length]u8 = t.signature.?[0..std.crypto.sign.Ed25519.Signature.encoded_length];
+
+                const signature = Signature.fromBytes(_signature_.*);
 
                 var sig: bool = undefined;
                 if (key) |k| {
                     // std.debug.print("triggered not null\n", .{});
-                    sig = eddsa.Eddsa.verify(signature, sst, k);
+                    var keytemp: [std.crypto.sign.Ed25519.PublicKey.encoded_length]u8 = undefined;
+                    @memcpy(&keytemp, k);
+                    const pk = try std.crypto.sign.Ed25519.PublicKey.fromBytes(keytemp);
+                    sig = eddsa.Eddsa.verify(signature, sst, pk);
                 } else {
                     // std.debug.print("triggered null\n", .{});
                     sig = eddsa.Eddsa.verify(signature, sst, Key_cipr.ed.public_key);
                 }
                 return sig;
+            },
+            .HS256 => {
+                if (t.signature.?.len != HS256.mac_length) {
+                    std.debug.print("triggered {d}\n", .{t.signature.?.len});
+                    return error.InvalidSignatureLength;
+                }
+                const sst = t.beforeSignature();
+                const signature: *[HS256.mac_length]u8 = t.signature.?[0..HS256.mac_length];
+                // defer t.allocator.free(t.signature.?);
+                var hmac: [HS256.mac_length]u8 = undefined;
+
+                if (key) |k| {
+                    HS256.create(&hmac, sst, k);
+                } else {
+                    HS256.create(&hmac, sst, &Key_cipr.hmac);
+                }
+                // std.debug.print("Computed HMAC: {any}\n", .{hmac});
+                // std.debug.print("Signature from token: {any}\n", .{signature});
+
+                return pl.constTimeEqual(signature, &hmac);
             },
             else => unreachable,
         }
