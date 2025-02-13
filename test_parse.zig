@@ -112,3 +112,61 @@ test "parse hs256 test null" {
     var token = try parse.parseToken(alloc, raw, null);
     defer token.deinit(true, true);
 }
+
+test "parse hs384 test null" {
+    std.debug.print("test parse hs384 null", .{});
+    const alloc = std.heap.page_allocator;
+    const header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS384, .{});
+    const iat = date.NumericDate.init(alloc, @as(u64, @intCast(std.time.timestamp())));
+    const payload = pl.Payload{
+        .allocator = alloc,
+        .jti = "test_id",
+        .sub = "subject",
+        .iat = iat,
+    };
+
+    var jwtToken = jwt.Token.init(alloc, &header, &payload);
+
+    _ = try jwtToken.signToken(null);
+    const verify = try jwtToken.verifyToken(null);
+    std.debug.print("{any}\n", .{verify});
+
+    const raw = jwtToken.raw.?;
+
+    var token = try parse.parseToken(alloc, raw, null);
+    defer token.deinit(true, true);
+}
+
+test "parse hs384 not null " {
+    std.debug.print("test parse h384 not null", .{});
+
+    const alloc = std.heap.page_allocator;
+    const header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS384, .{});
+    const iat = date.NumericDate.init(alloc, @as(u64, @intCast(std.time.timestamp())));
+    const payload = pl.Payload{
+        .allocator = alloc,
+        .jti = "test_id",
+        .sub = "subject",
+        .iat = iat,
+    };
+
+    var jwtToken = jwt.Token.init(alloc, &header, &payload);
+
+    _ = try jwtToken.signToken(null);
+    const verify = try jwtToken.verifyToken(null);
+    std.debug.print("{any}\n", .{verify});
+
+    const raw = jwtToken.raw.?;
+
+    const signature = jwtToken.signature.?;
+
+    var token = try parse.parseToken(alloc, raw, signature);
+    defer token.deinit(true, true);
+
+    std.debug.print("TokenAlg: {s}\n", .{token.header.alg.string()});
+
+    const verify_2 = try token.verifyToken(null);
+
+    std.debug.print("Verify: {any}\n", .{verify_2});
+    assert(verify);
+}

@@ -9,10 +9,12 @@ const PublicKey = std.crypto.sign.Ed25519.PublicKey;
 const Signature = std.crypto.sign.Ed25519.Signature;
 const KeyPair = std.crypto.sign.Ed25519.KeyPair;
 const HS256 = std.crypto.auth.hmac.sha2.HmacSha256;
+const HS384 = std.crypto.auth.hmac.sha2.HmacSha384;
 
 const Key_cipr = struct {
     var ed: KeyPair = undefined;
-    var hmac: [std.crypto.auth.hmac.sha2.HmacSha256.key_length]u8 = undefined;
+    var hs256: [HS256.key_length]u8 = undefined;
+    var hs384: [HS384.key_length]u8 = undefined;
     // var hmac: KeyPair = undefined;
 
 };
@@ -79,9 +81,16 @@ pub const Token = struct {
         const kp = KeyPair.generate();
         return kp;
     }
-    pub fn generateKeyPairHmac(t: *Token) ![HS256.key_length]u8 {
+    pub fn generateKeyPairHS256(t: *Token) ![HS256.key_length]u8 {
         _ = t;
         var hmac: [HS256.key_length]u8 = undefined;
+        std.crypto.random.bytes(&hmac);
+        return hmac;
+    }
+
+    pub fn generateKeyPairHS384(t: *Token) ![HS384.key_length]u8 {
+        _ = t;
+        var hmac: [HS384.key_length]u8 = undefined;
         std.crypto.random.bytes(&hmac);
         return hmac;
     }
@@ -166,7 +175,7 @@ pub const Token = struct {
                 } else {
                     var key_temp: [std.crypto.auth.hmac.sha2.HmacSha256.key_length]u8 = undefined;
                     std.crypto.random.bytes(&key_temp);
-                    Key_cipr.hmac = key_temp;
+                    Key_cipr.hs256 = key_temp;
                     HS256.create(&hmac, sst, key_temp[0..]);
                 }
                 t.signature = try t.allocator.dupe(u8, &hmac);
@@ -177,6 +186,30 @@ pub const Token = struct {
                 defer t.allocator.free(sigDest);
                 const encodedSig = base64url.Encoder.encode(sigDest, &hmac);
 
+                try writer.writeAll(sst);
+                try writer.writeByte('.');
+                try writer.writeAll(encodedSig);
+                const tokenRaw = try js.toOwnedSlice();
+                t.raw = try t.allocator.dupe(u8, tokenRaw);
+                return tokenRaw;
+            },
+            .HS384 => {
+                const writer = js.writer();
+                var hmac: [HS384.mac_length]u8 = undefined;
+                if (key) |k| {
+                    HS384.create(&hmac, sst, k);
+                } else {
+                    var key_temp: [HS384.key_length]u8 = undefined;
+                    std.crypto.random.bytes(&key_temp);
+                    Key_cipr.hs384 = key_temp;
+                    HS384.create(&hmac, sst, key_temp[0..]);
+                }
+                t.signature = try t.allocator.dupe(u8, &hmac);
+
+                const encodedLen = base64url.Encoder.calcSize(hmac.len);
+                const sigDest = try t.allocator.alloc(u8, encodedLen);
+                defer t.allocator.free(sigDest);
+                const encodedSig = base64url.Encoder.encode(sigDest, &hmac);
                 try writer.writeAll(sst);
                 try writer.writeByte('.');
                 try writer.writeAll(encodedSig);
@@ -227,11 +260,26 @@ pub const Token = struct {
                 if (key) |k| {
                     HS256.create(&hmac, sst, k);
                 } else {
-                    HS256.create(&hmac, sst, &Key_cipr.hmac);
+                    HS256.create(&hmac, sst, &Key_cipr.hs256);
                 }
                 // std.debug.print("Computed HMAC: {any}\n", .{hmac});
                 // std.debug.print("Signature from token: {any}\n", .{signature});
 
+                return pl.constTimeEqual(signature, &hmac);
+            },
+            .HS384 => {
+                if (t.signature.?.len != HS384.mac_length) {
+                    std.debug.print("triggered {d}\n", .{t.signature.?.len});
+                    return error.InvalidSignatureLength;
+                }
+                const sst = t.beforeSignature();
+                const signature: *[HS384.mac_length]u8 = t.signature.?[0..HS384.mac_length];
+                var hmac: [HS384.mac_length]u8 = undefined;
+                if (key) |k| {
+                    HS384.create(&hmac, sst, k);
+                } else {
+                    HS384.create(&hmac, sst, &Key_cipr.hs384);
+                }
                 return pl.constTimeEqual(signature, &hmac);
             },
             else => unreachable,
