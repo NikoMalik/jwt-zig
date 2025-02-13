@@ -139,3 +139,51 @@ test "jwt hs384 null test" {
     std.debug.print("{any}\n", .{verify});
     assert(verify);
 }
+
+test "jwt hs512 null test" {
+    std.debug.print("hs512|null\n", .{});
+    const alloc = std.heap.page_allocator;
+    const header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS512, .{});
+
+    const payload = p.Payload{
+        .allocator = alloc,
+        .jti = "sigma boy",
+        .iss = "iss",
+        .sub = "trump",
+    };
+
+    var jwtToken = jwt.Token.init(alloc, &header, &payload);
+    defer jwtToken.deinit(false, false);
+
+    const sigmaToken = try jwtToken.signToken(null);
+    const verify = try jwtToken.verifyToken(null);
+    std.debug.print("{s}\n", .{sigmaToken});
+    std.debug.print("{any}\n", .{verify});
+    assert(verify);
+}
+
+test "jwt hs512 not null test" {
+    std.debug.print("hs512|not null\n", .{});
+    const alloc = std.heap.page_allocator;
+
+    const header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS512, .{});
+
+    const payload = p.Payload{
+        .allocator = alloc,
+        .jti = "sigma boy",
+        .iss = "iss",
+        .sub = "trump",
+    };
+
+    var jwtToken = jwt.Token.init(alloc, &header, &payload);
+    defer jwtToken.deinit(false, false);
+
+    var key = try jwtToken.generateKeyPairHS512();
+
+    const sigmaToken = try jwtToken.signToken(key[0..]);
+    const verify = try jwtToken.verifyToken(key[0..]);
+
+    std.debug.print("{s}\n", .{sigmaToken});
+    std.debug.print("{any}\n", .{verify});
+    assert(verify);
+}

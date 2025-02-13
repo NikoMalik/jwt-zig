@@ -10,11 +10,13 @@ const Signature = std.crypto.sign.Ed25519.Signature;
 const KeyPair = std.crypto.sign.Ed25519.KeyPair;
 const HS256 = std.crypto.auth.hmac.sha2.HmacSha256;
 const HS384 = std.crypto.auth.hmac.sha2.HmacSha384;
+const HS512 = std.crypto.auth.hmac.sha2.HmacSha512;
 
 const Key_cipr = struct {
     var ed: KeyPair = undefined;
     var hs256: [HS256.key_length]u8 = undefined;
     var hs384: [HS384.key_length]u8 = undefined;
+    var hs512: [HS512.key_length]u8 = undefined;
     // var hmac: KeyPair = undefined;
 
 };
@@ -88,6 +90,13 @@ pub const Token = struct {
         return hmac;
     }
 
+    pub fn generateKeyPairHS512(t: *Token) ![HS512.key_length]u8 {
+        _ = t;
+        var hmac: [HS512.key_length]u8 = undefined;
+        std.crypto.random.bytes(&hmac);
+        return hmac;
+    }
+
     pub fn generateKeyPairHS384(t: *Token) ![HS384.key_length]u8 {
         _ = t;
         var hmac: [HS384.key_length]u8 = undefined;
@@ -111,9 +120,7 @@ pub const Token = struct {
         return t.raw[t.sep2 + 1 ..];
     }
 
-    pub fn signingString(t: *Token) ![]const u8 {
-        var js = std.ArrayList(u8).init(t.allocator);
-        defer js.deinit();
+    inline fn signingString(t: *Token, js: *std.ArrayList(u8)) !void {
         var writer = js.writer();
         const header = t.header.unmarshalHeader() catch "";
         defer t.header.free_Base64URL(header);
@@ -124,16 +131,16 @@ pub const Token = struct {
         defer t.payload.free_base64url(payload);
         try writer.writeAll(payload);
         t.sep2 = writer.context.items.len;
-        return js.toOwnedSlice();
     }
 
     //for EDDSA KEY IS PRIVATE KEY
     //FOR HMAC KEY IS KEY
     pub fn signToken(t: *Token, key: ?[]u8) ![]const u8 {
-        const sst = try t.signingString();
         var js = std.ArrayList(u8).init(t.allocator);
         defer js.deinit();
-
+        try t.signingString(&js);
+        const sst = js.items;
+        // js.clearRetainingCapacity();
         switch (t.header.alg) {
             .EDDSA => {
                 const writer = js.writer();
@@ -158,7 +165,7 @@ pub const Token = struct {
                 const sigDest = try t.allocator.alloc(u8, encodedLen);
                 defer t.allocator.free(sigDest);
                 const encodedSig = base64url.Encoder.encode(sigDest, &sigBytes);
-                try writer.writeAll(sst);
+                // try writer.writeAll(sst);
                 try writer.writeByte('.');
                 try writer.writeAll(encodedSig);
                 const tokenRaw = try js.toOwnedSlice();
@@ -186,7 +193,7 @@ pub const Token = struct {
                 defer t.allocator.free(sigDest);
                 const encodedSig = base64url.Encoder.encode(sigDest, &hmac);
 
-                try writer.writeAll(sst);
+                // try writer.writeAll(sst);
                 try writer.writeByte('.');
                 try writer.writeAll(encodedSig);
                 const tokenRaw = try js.toOwnedSlice();
@@ -210,7 +217,30 @@ pub const Token = struct {
                 const sigDest = try t.allocator.alloc(u8, encodedLen);
                 defer t.allocator.free(sigDest);
                 const encodedSig = base64url.Encoder.encode(sigDest, &hmac);
-                try writer.writeAll(sst);
+                // try writer.writeAll(sst);
+                try writer.writeByte('.');
+                try writer.writeAll(encodedSig);
+                const tokenRaw = try js.toOwnedSlice();
+                t.raw = try t.allocator.dupe(u8, tokenRaw);
+                return tokenRaw;
+            },
+            .HS512 => {
+                const writer = js.writer();
+                var hmac: [HS512.mac_length]u8 = undefined;
+                if (key) |k| {
+                    HS512.create(&hmac, sst, k);
+                } else {
+                    var key_temp: [HS512.key_length]u8 = undefined;
+                    std.crypto.random.bytes(&key_temp);
+                    Key_cipr.hs512 = key_temp;
+                    HS512.create(&hmac, sst, key_temp[0..]);
+                }
+                t.signature = try t.allocator.dupe(u8, &hmac);
+                const encodedLen = base64url.Encoder.calcSize(hmac.len);
+                const sigDest = try t.allocator.alloc(u8, encodedLen);
+                defer t.allocator.free(sigDest);
+                const encodedSig = base64url.Encoder.encode(sigDest, &hmac);
+                // try writer.writeAll(sst);
                 try writer.writeByte('.');
                 try writer.writeAll(encodedSig);
                 const tokenRaw = try js.toOwnedSlice();
@@ -282,6 +312,23 @@ pub const Token = struct {
                 }
                 return pl.constTimeEqual(signature, &hmac);
             },
+            .HS512 => {
+                if (t.signature.?.len != HS512.mac_length) {
+                    std.debug.print("triggered {d}\n", .{t.signature.?.len});
+                    return error.InvalidSignatureLength;
+                }
+
+                const sst = t.beforeSignature();
+                const signature: *[HS512.mac_length]u8 = t.signature.?[0..HS512.mac_length];
+                var hmac: [HS512.mac_length]u8 = undefined;
+                if (key) |k| {
+                    HS512.create(&hmac, sst, k);
+                } else {
+                    HS512.create(&hmac, sst, &Key_cipr.hs512);
+                }
+                return pl.constTimeEqual(signature, &hmac);
+            },
+
             else => unreachable,
         }
     }

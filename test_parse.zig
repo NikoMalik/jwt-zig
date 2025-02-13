@@ -168,5 +168,33 @@ test "parse hs384 not null " {
     const verify_2 = try token.verifyToken(null);
 
     std.debug.print("Verify: {any}\n", .{verify_2});
+    assert(verify_2);
+    assert(verify);
+}
+//
+test "parse hs512 null " {
+    std.debug.print("test parse hs512 not null", .{});
+
+    const alloc = std.heap.page_allocator;
+    const header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS512, .{});
+
+    const payload = pl.Payload{
+        .allocator = alloc,
+        .jti = "test_id",
+        .sub = "subject",
+    };
+
+    var jwtToken = jwt.Token.init(alloc, &header, &payload);
+
+    _ = try jwtToken.signToken(null);
+    const raw = jwtToken.raw.?;
+
+    const verify = try jwtToken.verifyToken(null);
+    std.debug.print("{any}\n", .{verify});
+
+    var token = try parse.parseToken(alloc, raw, null);
+
+    defer token.deinit(true, true);
+
     assert(verify);
 }
