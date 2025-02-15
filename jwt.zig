@@ -161,6 +161,7 @@ pub const Token = struct {
 
     //for EDDSA KEY IS PRIVATE KEY
     //FOR HMAC KEY IS KEY
+    //Sign token gives you signed token which not free after deinit token
     pub fn signToken(t: *Token, key: ?[]u8) ![]const u8 {
         var js = std.ArrayList(u8).init(t.allocator);
         defer js.deinit();
@@ -402,12 +403,258 @@ pub const Token = struct {
             //     const tokenRaw = try js.toOwnedSlice();
             //     t.raw = try t.allocator.dupe(u8, tokenRaw);
             //     return tokenRaw;
-            // },
+            .none => {
+                const writer = js.writer();
+                if (t.signature) |s| {
+                    t.allocator.free(s);
+                }
+                t.signature = null;
+
+                try writer.writeByte('.');
+
+                const tokenRaw = try js.toOwnedSlice();
+                if (t.raw) |old_raw| {
+                    t.allocator.free(old_raw);
+                }
+                t.raw = try t.allocator.dupe(u8, tokenRaw);
+                return tokenRaw;
+            },
 
             else => unreachable,
         }
     }
-    //public key for eddsa
+    pub fn sign(t: *Token, key: ?[]u8) !void {
+        var js = std.ArrayList(u8).init(t.allocator);
+        defer js.deinit();
+        try t.signingString(&js);
+        const sst = js.items;
+        // js.clearRetainingCapacity();
+        switch (t.header.alg) {
+            .EDDSA => {
+                const writer = js.writer();
+                var edd: eddsa.Eddsa = undefined;
+                if (key) |k| {
+                    if (k.len != std.crypto.sign.Ed25519.SecretKey.encoded_length) {
+                        return error.InvalidKeySize;
+                    }
+                    // const ktemp: [64]u8 = @ptrCast(@alignCast(k.ptr));
+                    // @memcpy(&ktemp, k);
+                    edd = try eddsa.Eddsa.initFromSecretKey(try std.crypto.sign.Ed25519.SecretKey.fromBytes(@as(*const [std.crypto.sign.Ed25519.SecretKey.encoded_length]u8, @ptrCast(k.ptr)).*));
+                } else {
+                    edd = try eddsa.Eddsa.generateKeys();
+                    Key_cipr.ed = edd.keyPaid;
+                }
+
+                const sig = try edd.sign(sst);
+                var sigBytes = sig.toBytes();
+                if (t.signature) |s| {
+                    t.allocator.free(s);
+                }
+                t.signature = try t.allocator.dupe(u8, &sigBytes);
+
+                const encodedLen = base64url.Encoder.calcSize(sigBytes.len);
+                const sigDest = try t.allocator.alloc(u8, encodedLen);
+                defer t.allocator.free(sigDest);
+                const encodedSig = base64url.Encoder.encode(sigDest, &sigBytes);
+                // try writer.writeAll(sst);
+                try writer.writeByte('.');
+                try writer.writeAll(encodedSig);
+                const tokenRaw = try js.toOwnedSlice();
+                if (t.raw) |old_raw| {
+                    t.allocator.free(old_raw);
+                }
+                t.raw = try t.allocator.dupe(u8, tokenRaw);
+                defer t.allocator.free(tokenRaw);
+            },
+            .HS256 => {
+                const writer = js.writer();
+                var hmac: [HS256.mac_length]u8 = undefined;
+
+                if (key) |k| {
+                    if (k.len != std.crypto.auth.hmac.sha2.HmacSha256.key_length) {
+                        return error.InvalidKeySize;
+                    }
+                    HS256.create(&hmac, sst, k);
+                } else {
+                    var key_temp: [std.crypto.auth.hmac.sha2.HmacSha256.key_length]u8 = undefined;
+                    std.crypto.random.bytes(&key_temp);
+                    Key_cipr.hs256 = key_temp;
+                    HS256.create(&hmac, sst, key_temp[0..]);
+                }
+                if (t.signature) |s| {
+                    t.allocator.free(s);
+                }
+                t.signature = try t.allocator.dupe(u8, &hmac);
+                // std.debug.print("hmac sign{any}\n", .{hmac});
+                // std.debug.print("signature{any}\n ", .{t.signature.?});
+                const encodedLen = base64url.Encoder.calcSize(hmac.len);
+                const sigDest = try t.allocator.alloc(u8, encodedLen);
+                defer t.allocator.free(sigDest);
+                const encodedSig = base64url.Encoder.encode(sigDest, &hmac);
+
+                // try writer.writeAll(sst);
+                try writer.writeByte('.');
+                try writer.writeAll(encodedSig);
+                const tokenRaw = try js.toOwnedSlice();
+                if (t.raw) |old_raw| {
+                    t.allocator.free(old_raw);
+                }
+                t.raw = try t.allocator.dupe(u8, tokenRaw);
+                defer t.allocator.free(tokenRaw);
+            },
+            .HS384 => {
+                const writer = js.writer();
+                var hmac: [HS384.mac_length]u8 = undefined;
+                if (key) |k| {
+                    if (k.len != HS384.key_length) {
+                        return error.InvalidKeySize;
+                    }
+                    HS384.create(&hmac, sst, k);
+                } else {
+                    var key_temp: [HS384.key_length]u8 = undefined;
+                    std.crypto.random.bytes(&key_temp);
+                    Key_cipr.hs384 = key_temp;
+                    HS384.create(&hmac, sst, key_temp[0..]);
+                }
+                if (t.signature) |s| {
+                    t.allocator.free(s);
+                }
+                t.signature = try t.allocator.dupe(u8, &hmac);
+
+                const encodedLen = base64url.Encoder.calcSize(hmac.len);
+                const sigDest = try t.allocator.alloc(u8, encodedLen);
+                defer t.allocator.free(sigDest);
+                const encodedSig = base64url.Encoder.encode(sigDest, &hmac);
+                // try writer.writeAll(sst);
+                try writer.writeByte('.');
+                try writer.writeAll(encodedSig);
+                const tokenRaw = try js.toOwnedSlice();
+                if (t.raw) |old_raw| {
+                    t.allocator.free(old_raw);
+                }
+                t.raw = try t.allocator.dupe(u8, tokenRaw);
+                defer t.allocator.free(tokenRaw);
+            },
+            .HS512 => {
+                const writer = js.writer();
+                var hmac: [HS512.mac_length]u8 = undefined;
+                if (key) |k| {
+                    if (k.len != HS512.key_length) {
+                        return error.InvalidKeySize;
+                    }
+                    HS512.create(&hmac, sst, k);
+                } else {
+                    var key_temp: [HS512.key_length]u8 = undefined;
+                    std.crypto.random.bytes(&key_temp);
+                    Key_cipr.hs512 = key_temp;
+                    HS512.create(&hmac, sst, key_temp[0..]);
+                }
+                if (t.signature) |s| {
+                    t.allocator.free(s);
+                }
+                t.signature = try t.allocator.dupe(u8, &hmac);
+                const encodedLen = base64url.Encoder.calcSize(hmac.len);
+                const sigDest = try t.allocator.alloc(u8, encodedLen);
+                defer t.allocator.free(sigDest);
+                const encodedSig = base64url.Encoder.encode(sigDest, &hmac);
+                // try writer.writeAll(sst);
+                try writer.writeByte('.');
+                try writer.writeAll(encodedSig);
+                const tokenRaw = try js.toOwnedSlice();
+                if (t.raw) |old_raw| {
+                    t.allocator.free(old_raw);
+                }
+                t.raw = try t.allocator.dupe(u8, tokenRaw);
+                defer t.allocator.free(tokenRaw);
+            },
+            .ES256 => {
+                const writer = js.writer();
+                var es: ES256.KeyPair = undefined;
+                if (key) |k| {
+                    if (k.len != ES256.SecretKey.encoded_length) {
+                        return error.InvalidKeySize;
+                    }
+                    // var ktemp: [ES256.SecretKey.encoded_length]u8 = undefined;
+                    // @memcpy(&ktemp, k);
+                    es = try ES256.KeyPair.fromSecretKey(try ES256.SecretKey.fromBytes(@as(*const [ES256.SecretKey.encoded_length]u8, @ptrCast(k.ptr)).*));
+                } else {
+                    es = try t.generateKeyPairEs256();
+                    Key_cipr.es256 = es;
+                }
+                const sig = try es.sign(sst, null);
+                const sigBytes = sig.toBytes();
+                if (t.signature) |s| {
+                    t.allocator.free(s);
+                }
+                t.signature = try t.allocator.dupe(u8, &sigBytes);
+                const encodedLen = base64url.Encoder.calcSize(sigBytes.len);
+                const sigDest = try t.allocator.alloc(u8, encodedLen);
+                defer t.allocator.free(sigDest);
+                const encodedSig = base64url.Encoder.encode(sigDest, &sigBytes);
+                // try writer.writeAll(sst);
+                try writer.writeByte('.');
+                try writer.writeAll(encodedSig);
+                const tokenRaw = try js.toOwnedSlice();
+                if (t.raw) |old_raw| {
+                    t.allocator.free(old_raw);
+                }
+                t.raw = try t.allocator.dupe(u8, tokenRaw);
+                defer t.allocator.free(tokenRaw);
+            },
+            .ES384 => {
+                const writer = js.writer();
+                var es: ES384.KeyPair = undefined;
+                if (key) |k| {
+                    if (k.len != ES384.SecretKey.encoded_length) {
+                        return error.InvalidKeySize;
+                    }
+                    // var ktemp: [ES384.SecretKey.encoded_length]u8 = undefined;
+                    // @memcpy(&ktemp, k);
+                    es = try ES384.KeyPair.fromSecretKey(try ES384.SecretKey.fromBytes(@as(*const [ES384.SecretKey.encoded_length]u8, @ptrCast(k.ptr)).*));
+                } else {
+                    es = try t.generateKeyPairEs384();
+                    Key_cipr.es384 = es;
+                }
+                const sig = try es.sign(sst, null);
+                const sigBytes = sig.toBytes();
+                if (t.signature) |s| {
+                    t.allocator.free(s);
+                }
+                t.signature = try t.allocator.dupe(u8, &sigBytes);
+                const encodedLen = base64url.Encoder.calcSize(sigBytes.len);
+                const sigDest = try t.allocator.alloc(u8, encodedLen);
+                defer t.allocator.free(sigDest);
+                const encodedSig = base64url.Encoder.encode(sigDest, &sigBytes);
+                // try writer.writeAll(sst);
+                try writer.writeByte('.');
+                try writer.writeAll(encodedSig);
+                const tokenRaw = try js.toOwnedSlice();
+                if (t.raw) |old_raw| {
+                    t.allocator.free(old_raw);
+                }
+
+                t.raw = try t.allocator.dupe(u8, tokenRaw);
+                defer t.allocator.free(tokenRaw);
+            },
+            .none => {
+                const writer = js.writer();
+                if (t.signature) |s| {
+                    t.allocator.free(s);
+                }
+                t.signature = null;
+                try writer.writeByte('.');
+
+                const tokenRaw = try js.toOwnedSlice();
+                if (t.raw) |old_raw| {
+                    t.allocator.free(old_raw);
+                }
+                t.raw = try t.allocator.dupe(u8, tokenRaw);
+                defer t.allocator.free(tokenRaw);
+            },
+
+            else => unreachable,
+        }
+    }
 
     pub fn verifyToken(t: *Token, key: ?[]u8) !bool {
         switch (t.header.alg) {
@@ -558,6 +805,29 @@ pub const Token = struct {
                 }
                 return sig;
             },
+            .none => {
+                if (t.signature != null and t.signature.?.len != 0) {
+                    return error.InvalidSignature;
+                }
+
+                const raw = t.raw.?;
+                var iter = std.mem.splitScalar(u8, raw, '.');
+                _ = iter.first();
+                _ = iter.next() orelse return error.InvalidTokenFormat;
+
+                if (iter.next()) |sig_part| {
+                    if (sig_part.len != 0) {
+                        return error.InvalidSignature;
+                    }
+                }
+
+                if (key != null) {
+                    return error.UnexpectedKeyForNoneAlgorithm;
+                }
+
+                return true;
+            },
+
             // .ES512 => {
             //     if (t.signature.?.len != ES512.Signature.encoded_length) {
             //         std.debug.print("triggered {d}\n", .{t.signature.?.len});

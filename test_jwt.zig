@@ -352,3 +352,68 @@ test "jwt es256 with pem test" {
     std.debug.print("{any}\n", .{verify});
     assert(verify);
 }
+
+test "jwt es256 pem and sign" {
+    std.debug.print("es256|pem\n", .{});
+    var alloc = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = alloc.deinit();
+    const leaks = alloc.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.ES256, .{
+        .kid = "kid",
+    });
+
+    var payload = p.Payload{
+        .allocator = alloc.allocator(),
+        .jti = "sigma boy",
+        .iss = "iss",
+        .sub = "trump",
+    };
+
+    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
+    defer jwtToken.deinit(false, false);
+
+    var privPem = try jwt.keyFromFile(alloc.allocator(), "private_key.pem");
+    defer privPem.deinit();
+    var publicPem = try jwt.keyFromFile(alloc.allocator(), "public_key.pem");
+    defer publicPem.deinit();
+    std.debug.print("privatelen={d}\n", .{privPem.value.bytes.len});
+    std.debug.print("publiclen{d}\n", .{publicPem.value.bytes.len});
+
+    var privateBytes: [32]u8 = undefined;
+    @memcpy(&privateBytes, privPem.value.bytes);
+    var publicBytes: [65]u8 = undefined;
+    @memcpy(&publicBytes, publicPem.value.bytes);
+
+    try jwtToken.sign(privateBytes[0..]);
+    const verify = try jwtToken.verifyToken(publicBytes[0..]);
+    std.debug.print("{any}\n", .{verify});
+    std.debug.print("{s}\n", .{jwtToken.raw.?});
+    assert(verify);
+}
+
+test "jwt none test" {
+    std.debug.print("none|null\n", .{});
+    var alloc = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = alloc.deinit();
+    const leaks = alloc.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.none, .{});
+
+    var payload = p.Payload{
+        .allocator = alloc.allocator(),
+        .jti = "sigma boy",
+        .iss = "iss",
+        .sub = "trump",
+    };
+
+    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
+    defer jwtToken.deinit(false, false);
+
+    const sigmaToken = try jwtToken.signToken(null);
+    defer alloc.allocator().free(sigmaToken);
+    const verify = try jwtToken.verifyToken(null);
+    std.debug.print("{s}\n", .{sigmaToken});
+    std.debug.print("{any}\n", .{verify});
+    // assert(verify);
+}

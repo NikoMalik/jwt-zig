@@ -53,6 +53,11 @@ pub const Algorithm = union(enum) {
             .{ .tag = "HS512", .value = Algorithm.HS512 },
             .{ .tag = "PS256", .value = Algorithm.PS256 },
             .{ .tag = "PS384", .value = Algorithm.PS384 },
+            .{ .tag = "PS512", .value = Algorithm.PS512 },
+            .{ .tag = "RS256", .value = Algorithm.RS256 },
+            .{ .tag = "RS384", .value = Algorithm.RS384 },
+            .{ .tag = "RS512", .value = Algorithm.RS512 },
+            .{ .tag = "none", .value = Algorithm.none },
         };
         for (lookup) |e| {
             if (std.mem.eql(u8, n, e.tag)) {
@@ -61,16 +66,6 @@ pub const Algorithm = union(enum) {
         }
 
         return null;
-    }
-
-    pub fn CryptoFn(a: Algorithm) type {
-        return switch (a) {
-            .HS256 => std.crypto.auth.hmac.sha2.HmacSha256,
-            .HS384 => std.crypto.auth.hmac.sha2.HmacSha384,
-            .HS512 => std.crypto.auth.hmac.sha2.HmacSha512,
-            .EDDSA => eddsa,
-            else => unreachable,
-        };
     }
 };
 
