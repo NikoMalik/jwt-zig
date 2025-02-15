@@ -60,12 +60,13 @@ pub const Token = struct {
             self.allocator.free(ptr);
             self.signature = null;
         }
-
+        //check if header in heap allocated
         if (header) {
             self.allocator.destroy(self.header);
         }
+        //check if header in heap allocated
         if (payload) {
-            self.payload.deinit();
+            self.payload.deinit(); // deinit checks if fields are heap allocated
             self.allocator.destroy(self.payload);
         }
     }
@@ -174,9 +175,9 @@ pub const Token = struct {
                     if (k.len != std.crypto.sign.Ed25519.SecretKey.encoded_length) {
                         return error.InvalidKeySize;
                     }
-                    var ktemp: [64]u8 = undefined;
-                    @memcpy(&ktemp, k);
-                    edd = try eddsa.Eddsa.initFromSecretKey(try std.crypto.sign.Ed25519.SecretKey.fromBytes(ktemp));
+                    // const ktemp: [64]u8 = @ptrCast(@alignCast(k.ptr));
+                    // @memcpy(&ktemp, k);
+                    edd = try eddsa.Eddsa.initFromSecretKey(try std.crypto.sign.Ed25519.SecretKey.fromBytes(@as(*const [std.crypto.sign.Ed25519.SecretKey.encoded_length]u8, @ptrCast(k.ptr)).*));
                 } else {
                     edd = try eddsa.Eddsa.generateKeys();
                     Key_cipr.ed = edd.keyPaid;
@@ -209,6 +210,9 @@ pub const Token = struct {
                 var hmac: [HS256.mac_length]u8 = undefined;
 
                 if (key) |k| {
+                    if (k.len != std.crypto.auth.hmac.sha2.HmacSha256.key_length) {
+                        return error.InvalidKeySize;
+                    }
                     HS256.create(&hmac, sst, k);
                 } else {
                     var key_temp: [std.crypto.auth.hmac.sha2.HmacSha256.key_length]u8 = undefined;
@@ -241,6 +245,9 @@ pub const Token = struct {
                 const writer = js.writer();
                 var hmac: [HS384.mac_length]u8 = undefined;
                 if (key) |k| {
+                    if (k.len != HS384.key_length) {
+                        return error.InvalidKeySize;
+                    }
                     HS384.create(&hmac, sst, k);
                 } else {
                     var key_temp: [HS384.key_length]u8 = undefined;
@@ -271,6 +278,9 @@ pub const Token = struct {
                 const writer = js.writer();
                 var hmac: [HS512.mac_length]u8 = undefined;
                 if (key) |k| {
+                    if (k.len != HS512.key_length) {
+                        return error.InvalidKeySize;
+                    }
                     HS512.create(&hmac, sst, k);
                 } else {
                     var key_temp: [HS512.key_length]u8 = undefined;
@@ -303,9 +313,9 @@ pub const Token = struct {
                     if (k.len != ES256.SecretKey.encoded_length) {
                         return error.InvalidKeySize;
                     }
-                    var ktemp: [ES256.SecretKey.encoded_length]u8 = undefined;
-                    @memcpy(&ktemp, k);
-                    es = try ES256.KeyPair.fromSecretKey(try ES256.SecretKey.fromBytes(ktemp));
+                    // var ktemp: [ES256.SecretKey.encoded_length]u8 = undefined;
+                    // @memcpy(&ktemp, k);
+                    es = try ES256.KeyPair.fromSecretKey(try ES256.SecretKey.fromBytes(@as(*const [ES256.SecretKey.encoded_length]u8, @ptrCast(k.ptr)).*));
                 } else {
                     es = try t.generateKeyPairEs256();
                     Key_cipr.es256 = es;
@@ -337,9 +347,9 @@ pub const Token = struct {
                     if (k.len != ES384.SecretKey.encoded_length) {
                         return error.InvalidKeySize;
                     }
-                    var ktemp: [ES384.SecretKey.encoded_length]u8 = undefined;
-                    @memcpy(&ktemp, k);
-                    es = try ES384.KeyPair.fromSecretKey(try ES384.SecretKey.fromBytes(ktemp));
+                    // var ktemp: [ES384.SecretKey.encoded_length]u8 = undefined;
+                    // @memcpy(&ktemp, k);
+                    es = try ES384.KeyPair.fromSecretKey(try ES384.SecretKey.fromBytes(@as(*const [ES384.SecretKey.encoded_length]u8, @ptrCast(k.ptr)).*));
                 } else {
                     es = try t.generateKeyPairEs384();
                     Key_cipr.es384 = es;
@@ -413,10 +423,13 @@ pub const Token = struct {
 
                 var sig: bool = undefined;
                 if (key) |k| {
+                    if (k.len != std.crypto.sign.Ed25519.PublicKey.encoded_length) {
+                        return error.InvalidKeySize;
+                    }
                     // std.debug.print("triggered not null\n", .{});
-                    var keytemp: [std.crypto.sign.Ed25519.PublicKey.encoded_length]u8 = undefined;
-                    @memcpy(&keytemp, k);
-                    const pk = try std.crypto.sign.Ed25519.PublicKey.fromBytes(keytemp);
+                    // var keytemp: [std.crypto.sign.Ed25519.PublicKey.encoded_length]u8 = undefined;
+                    // @memcpy(&keytemp, k);
+                    const pk = try std.crypto.sign.Ed25519.PublicKey.fromBytes(@as(*const [std.crypto.sign.Ed25519.PublicKey.encoded_length]u8, @ptrCast(k.ptr)).*);
                     sig = eddsa.Eddsa.verify(signature, sst, pk);
                 } else {
                     // std.debug.print("triggered null\n", .{});
@@ -435,6 +448,9 @@ pub const Token = struct {
                 var hmac: [HS256.mac_length]u8 = undefined;
 
                 if (key) |k| {
+                    if (k.len != HS256.key_length) {
+                        return error.InvalidKeySize;
+                    }
                     HS256.create(&hmac, sst, k);
                 } else {
                     HS256.create(&hmac, sst, &Key_cipr.hs256);
@@ -453,6 +469,9 @@ pub const Token = struct {
                 const signature: *[HS384.mac_length]u8 = t.signature.?[0..HS384.mac_length];
                 var hmac: [HS384.mac_length]u8 = undefined;
                 if (key) |k| {
+                    if (k.len != HS384.key_length) {
+                        return error.InvalidKeySize;
+                    }
                     HS384.create(&hmac, sst, k);
                 } else {
                     HS384.create(&hmac, sst, &Key_cipr.hs384);
@@ -469,6 +488,9 @@ pub const Token = struct {
                 const signature: *[HS512.mac_length]u8 = t.signature.?[0..HS512.mac_length];
                 var hmac: [HS512.mac_length]u8 = undefined;
                 if (key) |k| {
+                    if (k.len != HS512.key_length) {
+                        return error.InvalidKeySize;
+                    }
                     HS512.create(&hmac, sst, k);
                 } else {
                     HS512.create(&hmac, sst, &Key_cipr.hs512);
@@ -488,15 +510,15 @@ pub const Token = struct {
                 if (key) |k| {
                     switch (k.len) {
                         32 => {
-                            var unsompressed: [32]u8 = undefined;
-                            @memcpy(&unsompressed, k);
-                            const pk = try ES256.PublicKey.fromSec1(&unsompressed);
+                            // var unsompressed: [32]u8 = undefined;
+                            // @memcpy(&unsompressed, k);
+                            const pk = try ES256.PublicKey.fromSec1(@as(*const [32]u8, @ptrCast(k.ptr)));
                             sig = verify(ES256.Signature, signature, sst, pk);
                         },
                         65 => {
-                            var unsompressed: [65]u8 = undefined;
-                            @memcpy(&unsompressed, k);
-                            const pk = try ES256.PublicKey.fromSec1(&unsompressed);
+                            // var unsompressed: [65]u8 = undefined;
+                            // @memcpy(&unsompressed, k);
+                            const pk = try ES256.PublicKey.fromSec1(@as(*const [65]u8, @ptrCast(k.ptr)));
                             sig = verify(ES256.Signature, signature, sst, pk);
                         },
                         else => return error.InvalidKeyLength,
@@ -518,15 +540,15 @@ pub const Token = struct {
                 if (key) |k| {
                     switch (k.len) {
                         32 => {
-                            var unsompressed: [32]u8 = undefined;
-                            @memcpy(&unsompressed, k);
-                            const pk = try ES384.PublicKey.fromSec1(&unsompressed);
+                            // var unsompressed: [32]u8 = undefined;
+                            // @memcpy(&unsompressed, k);
+                            const pk = try ES384.PublicKey.fromSec1(@as(*const [32]u8, @ptrCast(k.ptr)));
                             sig = verify(ES384.Signature, signature, sst, pk);
                         },
                         65 => {
-                            var unsompressed: [65]u8 = undefined;
-                            @memcpy(&unsompressed, k);
-                            const pk = try ES384.PublicKey.fromSec1(&unsompressed);
+                            // var unsompressed: [65]u8 = undefined;
+                            // @memcpy(&unsompressed, k);
+                            const pk = try ES384.PublicKey.fromSec1(@as(*const [65]u8, @ptrCast(k.ptr)));
                             sig = verify(ES384.Signature, signature, sst, pk);
                         },
                         else => return error.InvalidKeyLength,
