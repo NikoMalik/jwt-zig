@@ -64,6 +64,7 @@ pub const Header = struct {
         }
 
         const info = h.marshalJSON() catch "";
+        defer h.allocator.free(info);
 
         // CALCULATING SAFETY LEN FOR BASE64URL
         const encodedLen = base64url.Encoder.calcSize(info.len);

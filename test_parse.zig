@@ -13,9 +13,9 @@ const assert = std.debug.assert;
 test "parse test" {
     std.debug.print("test parse eddsa", .{});
     const alloc = std.heap.page_allocator;
-    const header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.EDDSA, .{});
+    var header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.EDDSA, .{});
     const iat = date.NumericDate.init(alloc, @as(u64, @intCast(std.time.timestamp())));
-    const payload = pl.Payload{
+    var payload = pl.Payload{
         .allocator = alloc,
         .jti = "test_id",
         .sub = "subject",
@@ -54,9 +54,9 @@ test "parse test" {
 test "parse hs256 test" {
     std.debug.print("test parse hs256", .{});
     const alloc = std.heap.page_allocator;
-    const header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS256, .{});
+    var header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS256, .{});
     const iat = date.NumericDate.init(alloc, @as(u64, @intCast(std.time.timestamp())));
-    const payload = pl.Payload{
+    var payload = pl.Payload{
         .allocator = alloc,
         .jti = "test_id",
         .sub = "subject",
@@ -92,9 +92,9 @@ test "parse hs256 test" {
 test "parse hs256 test null" {
     std.debug.print("test parse hs256 null", .{});
     const alloc = std.heap.page_allocator;
-    const header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS256, .{});
+    var header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS256, .{});
     const iat = date.NumericDate.init(alloc, @as(u64, @intCast(std.time.timestamp())));
-    const payload = pl.Payload{
+    var payload = pl.Payload{
         .allocator = alloc,
         .jti = "test_id",
         .sub = "subject",
@@ -116,9 +116,9 @@ test "parse hs256 test null" {
 test "parse hs384 test null" {
     std.debug.print("test parse hs384 null", .{});
     const alloc = std.heap.page_allocator;
-    const header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS384, .{});
+    var header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS384, .{});
     const iat = date.NumericDate.init(alloc, @as(u64, @intCast(std.time.timestamp())));
-    const payload = pl.Payload{
+    var payload = pl.Payload{
         .allocator = alloc,
         .jti = "test_id",
         .sub = "subject",
@@ -141,9 +141,9 @@ test "parse hs384 not null " {
     std.debug.print("test parse h384 not null", .{});
 
     const alloc = std.heap.page_allocator;
-    const header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS384, .{});
+    var header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS384, .{});
     const iat = date.NumericDate.init(alloc, @as(u64, @intCast(std.time.timestamp())));
-    const payload = pl.Payload{
+    var payload = pl.Payload{
         .allocator = alloc,
         .jti = "test_id",
         .sub = "subject",
@@ -176,9 +176,9 @@ test "parse hs512 null " {
     std.debug.print("test parse hs512 not null", .{});
 
     const alloc = std.heap.page_allocator;
-    const header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS512, .{});
+    var header = head.Header.init(alloc, typ.Type.JWT, typ.Algorithm.HS512, .{});
 
-    const payload = pl.Payload{
+    var payload = pl.Payload{
         .allocator = alloc,
         .jti = "test_id",
         .sub = "subject",
@@ -186,7 +186,8 @@ test "parse hs512 null " {
 
     var jwtToken = jwt.Token.init(alloc, &header, &payload);
 
-    _ = try jwtToken.signToken(null);
+    const tokenTofree = try jwtToken.signToken(null);
+    defer alloc.free(tokenTofree);
     const raw = jwtToken.raw.?;
 
     const verify = try jwtToken.verifyToken(null);
@@ -196,5 +197,45 @@ test "parse hs512 null " {
 
     defer token.deinit(true, true);
 
+    assert(verify);
+}
+
+test "parse es256 null" {
+    std.debug.print("test parse es256 null\n", .{});
+
+    var alloc = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = alloc.deinit();
+    const leaks = alloc.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.ES256, .{});
+
+    var payload = pl.Payload{
+        .allocator = alloc.allocator(),
+        .jti = "sigma boy",
+        .iss = "iss",
+        .sub = "trump",
+    };
+
+    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
+    defer jwtToken.deinit(false, false);
+
+    const tokenTofree = try jwtToken.signToken(null);
+    defer alloc.allocator().free(tokenTofree);
+
+    const verify = try jwtToken.verifyToken(null);
+
+    std.debug.print("{any}\n", .{verify});
+
+    var token = try parse.parseToken(alloc.allocator(), jwtToken.raw.?, null);
+    defer token.deinit(true, true);
+
+    const issuer = token.payload.getIssuer().?;
+    std.debug.print("TokenPayload issuer: {s}\n", .{issuer});
+    const heads = try token.header.marshalJSON();
+    const payloads = try token.payload.marshalJSON_PAYLOAD();
+    defer alloc.allocator().free(payloads);
+    defer alloc.allocator().free(heads);
+    std.debug.print("heads={s}\n", .{heads});
+    std.debug.print("payloads={s}\n", .{payloads});
     assert(verify);
 }

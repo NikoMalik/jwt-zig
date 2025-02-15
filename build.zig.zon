@@ -1,6 +1,13 @@
 .{
-      .name = "jwt-zig",
-      .version = "0.0.0",
-      .paths = .{""},
+    .name = "jwt-zig",
+    .version = "0.0.0",
+    .dependencies = .{
+        .cricket = .{
+            .url = "https://github.com/NikoMalik/cricket.zig/archive/refs/heads/main.tar.gz",
+            .hash = "1220adf7baed2f328cc3a920ad2e209e4fcca445bd40efc4f420856deacfc6a96c26",
+
+
+        },
+    },
+    .paths = .{""},
 }
- 

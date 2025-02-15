@@ -24,7 +24,9 @@ pub fn parseToken(allocator: Allocator, raw: []u8, signature: ?[]u8) !jwt.Token 
     try header_buf.resize(headerDecodeSize);
     try base64url.Decoder.decode(header_buf.items, headerEncoded);
     const header_struct = try allocator.create(head.Header);
-    header_struct.* = try head.unmarshalJSON_HEADER(allocator, header_buf.items);
+    const header_items = try header_buf.toOwnedSlice();
+    header_struct.* = try head.unmarshalJSON_HEADER(allocator, header_items);
+    defer allocator.free(header_items);
     // payload
     var payload_buf = std.ArrayList(u8).init(allocator);
     defer payload_buf.deinit();
@@ -33,7 +35,9 @@ pub fn parseToken(allocator: Allocator, raw: []u8, signature: ?[]u8) !jwt.Token 
     try payload_buf.resize(payloadDecodeSize);
     try base64url.Decoder.decode(payload_buf.items, payloadEncoded);
     const payload_struct = try allocator.create(pl.Payload);
-    payload_struct.* = try pl.unmarshalJSON_PAYLOAD(allocator, payload_buf.items);
+    const payload_items = try payload_buf.toOwnedSlice();
+    payload_struct.* = try pl.unmarshalJSON_PAYLOAD(allocator, payload_items);
+    defer allocator.free(payload_items);
 
     var token = jwt.Token.init(allocator, header_struct, payload_struct);
     token.sep1 = sep_header;

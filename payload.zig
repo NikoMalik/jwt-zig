@@ -4,6 +4,7 @@ const Allocator = std.mem.Allocator;
 const base64url = std.base64.url_safe_no_pad;
 
 var count: usize = 0;
+var unmarshal: bool = false;
 
 pub const Payload = struct {
     allocator: Allocator,
@@ -14,6 +15,29 @@ pub const Payload = struct {
     exp: ?date.NumericDate = null,
     nbf: ?date.NumericDate = null,
     iat: ?date.NumericDate = null,
+
+    pub fn deinit(p: *Payload) void {
+        if (p.jti) |j| {
+            if (unmarshal) {
+                p.allocator.free(j);
+            }
+        }
+        if (p.iss) |i| {
+            if (unmarshal) {
+                p.allocator.free(i);
+            }
+        }
+        if (p.sub) |s| {
+            if (unmarshal) {
+                p.allocator.free(s);
+            }
+        }
+        if (p.aud) |a| {
+            if (unmarshal) {
+                p.allocator.free(a);
+            }
+        }
+    }
 
     pub fn getIssuer(p: *const Payload) ?[]const u8 {
         if (p.iss != null) {
@@ -197,6 +221,7 @@ pub const Payload = struct {
 
     pub fn unmsarshalPayload(p: *const Payload) ![]const u8 {
         const info = p.marshalJSON_PAYLOAD() catch "";
+        defer p.allocator.free(info);
 
         const encodedLen = base64url.Encoder.calcSize(info.len);
 
@@ -216,6 +241,7 @@ pub const Payload = struct {
 };
 
 pub fn unmarshalJSON_PAYLOAD(allocator: Allocator, js: []const u8) !Payload {
+    unmarshal = true;
     const PayloadJson = struct {
         jti: ?[]const u8 = null,
         iss: ?[]const u8 = null,
@@ -247,12 +273,32 @@ pub fn unmarshalJSON_PAYLOAD(allocator: Allocator, js: []const u8) !Payload {
         nbf = date.NumericDate.init(allocator, nbf_val);
     }
 
+    var jti: ?[]const u8 = null;
+    if (parsed.value.jti) |jti_val| {
+        jti = try allocator.dupe(u8, jti_val);
+    }
+
+    var sub: ?[]const u8 = null;
+    if (parsed.value.sub) |sub_val| {
+        sub = try allocator.dupe(u8, sub_val);
+    }
+
+    var iss: ?[]const u8 = null;
+    if (parsed.value.iss) |iss_val| {
+        iss = try allocator.dupe(u8, iss_val);
+    }
+
+    var aud: ?[]const u8 = null;
+    if (parsed.value.aud) |aud_val| {
+        aud = try allocator.dupe(u8, aud_val);
+    }
+
     return Payload{
         .allocator = allocator,
-        .jti = if (parsed.value.jti) |jti| jti else null,
-        .iss = if (parsed.value.iss) |iss| iss else null,
-        .sub = if (parsed.value.sub) |sub| sub else null,
-        .aud = if (parsed.value.aud) |aud| aud else null,
+        .jti = jti,
+        .iss = iss,
+        .sub = sub,
+        .aud = aud,
         .exp = exp,
         .nbf = nbf,
         .iat = iaat,
