@@ -13,9 +13,9 @@ test "JWT EDDSA test " {
     defer _ = alloc.deinit();
     const leaks = alloc.detectLeaks();
     std.debug.print("leaks={any}\n", .{leaks});
-    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.EDDSA, .{});
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.EDDSA, .{});
     const iat = date.NumericDate.init(alloc.allocator(), @as(u64, @intCast(std.time.timestamp())));
-    var payload = p.Payload{
+    const payload = p.Payload{
         .allocator = alloc.allocator(),
         .jti = "test_id",
         .iss = "issuer.com",
@@ -23,8 +23,8 @@ test "JWT EDDSA test " {
         .iat = iat,
     };
 
-    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
-    defer jwtToken.deinit(false, false);
+    var jwtToken = jwt.Token(p.Payload).init(alloc.allocator(), header, payload);
+    defer jwtToken.deinit();
 
     const sigmaToken = try jwtToken.signToken(null);
     defer alloc.allocator().free(sigmaToken);
@@ -53,9 +53,9 @@ test "jwt hs256 test" {
     defer _ = alloc.deinit();
     const leaks = alloc.detectLeaks();
     std.debug.print("leaks={any}\n", .{leaks});
-    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.HS256, .{});
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.HS256, .{});
     const iat = date.NumericDate.init(alloc.allocator(), @as(u64, @intCast(std.time.timestamp())));
-    var payload = p.Payload{
+    const payload = p.Payload{
         .allocator = alloc.allocator(),
         .jti = "test_id",
         .iss = "issuer.com",
@@ -63,8 +63,8 @@ test "jwt hs256 test" {
         .iat = iat,
     };
 
-    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
-    defer jwtToken.deinit(false, false);
+    var jwtToken = jwt.Token(p.Payload).init(alloc.allocator(), header, payload);
+    defer jwtToken.deinit();
 
     const sigmaToken = try jwtToken.signToken(null);
     defer alloc.allocator().free(sigmaToken);
@@ -81,9 +81,9 @@ test "jwt hs256 no null test" {
     defer _ = alloc.deinit();
     const leaks = alloc.detectLeaks();
     std.debug.print("leaks={any}\n", .{leaks});
-    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.HS256, .{});
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.HS256, .{});
     const iat = date.NumericDate.init(alloc.allocator(), @as(u64, @intCast(std.time.timestamp())));
-    var payload = p.Payload{
+    const payload = p.Payload{
         .allocator = alloc.allocator(),
         .jti = "test_id",
         .iss = "issuer.com",
@@ -91,8 +91,8 @@ test "jwt hs256 no null test" {
         .iat = iat,
     };
 
-    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
-    defer jwtToken.deinit(false, false);
+    var jwtToken = jwt.Token(p.Payload).init(alloc.allocator(), header, payload);
+    defer jwtToken.deinit();
 
     var hmacKey = try jwtToken.generateKeyPairHS256();
 
@@ -113,9 +113,9 @@ test "jwt hs384 not null test" {
     defer _ = alloc.deinit();
     const leaks = alloc.detectLeaks();
     std.debug.print("leaks={any}\n", .{leaks});
-    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.HS384, .{});
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.HS384, .{});
     const iat = date.NumericDate.init(alloc.allocator(), @as(u64, @intCast(std.time.timestamp())));
-    var payload = p.Payload{
+    const payload = p.Payload{
         .allocator = alloc.allocator(),
         .jti = "test_id",
         .iss = "issuer.com",
@@ -123,8 +123,8 @@ test "jwt hs384 not null test" {
         .iat = iat,
     };
 
-    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
-    defer jwtToken.deinit(false, false);
+    var jwtToken = jwt.Token(p.Payload).init(alloc.allocator(), header, payload);
+    defer jwtToken.deinit();
 
     var hmacKey = try jwtToken.generateKeyPairHS384();
 
@@ -143,16 +143,16 @@ test "jwt hs384 null test" {
     defer _ = alloc.deinit();
     const leaks = alloc.detectLeaks();
     std.debug.print("leaks={any}\n", .{leaks});
-    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.HS384, .{});
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.HS384, .{});
 
-    var payload = p.Payload{
+    const payload = p.Payload{
         .allocator = alloc.allocator(),
         .jti = "sigma boy",
         .iss = "iss",
         .sub = "trump",
     };
-    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
-    defer jwtToken.deinit(false, false);
+    var jwtToken = jwt.Token(p.Payload).init(alloc.allocator(), header, payload);
+    defer jwtToken.deinit();
 
     const sigmaToken = try jwtToken.signToken(null);
     defer alloc.allocator().free(sigmaToken);
@@ -168,17 +168,17 @@ test "jwt hs512 null test" {
     defer _ = alloc.deinit();
     const leaks = alloc.detectLeaks();
     std.debug.print("leaks={any}\n", .{leaks});
-    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.HS512, .{});
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.HS512, .{});
 
-    var payload = p.Payload{
+    const payload = p.Payload{
         .allocator = alloc.allocator(),
         .jti = "sigma boy",
         .iss = "iss",
         .sub = "trump",
     };
 
-    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
-    defer jwtToken.deinit(false, false);
+    var jwtToken = jwt.Token(p.Payload).init(alloc.allocator(), header, payload);
+    defer jwtToken.deinit();
 
     const sigmaToken = try jwtToken.signToken(null);
     defer alloc.allocator().free(sigmaToken);
@@ -195,17 +195,17 @@ test "jwt hs512 not null test" {
     const leaks = alloc.detectLeaks();
     std.debug.print("leaks={any}\n", .{leaks});
 
-    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.HS512, .{});
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.HS512, .{});
 
-    var payload = p.Payload{
+    const payload = p.Payload{
         .allocator = alloc.allocator(),
         .jti = "sigma boy",
         .iss = "iss",
         .sub = "trump",
     };
 
-    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
-    defer jwtToken.deinit(false, false);
+    var jwtToken = jwt.Token(p.Payload).init(alloc.allocator(), header, payload);
+    defer jwtToken.deinit();
 
     var key = try jwtToken.generateKeyPairHS512();
 
@@ -225,17 +225,17 @@ test "jwt es256 not null test" {
     defer _ = alloc.deinit();
     const leaks = alloc.detectLeaks();
     std.debug.print("leaks={any}\n", .{leaks});
-    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.ES256, .{});
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.ES256, .{});
 
-    var payload = p.Payload{
+    const payload = p.Payload{
         .allocator = alloc.allocator(),
         .jti = "sigma boy",
         .iss = "iss",
         .sub = "trump",
     };
 
-    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
-    defer jwtToken.deinit(false, false);
+    var jwtToken = jwt.Token(p.Payload).init(alloc.allocator(), header, payload);
+    defer jwtToken.deinit();
 
     const key = try jwtToken.generateKeyPairEs256();
     var keyPrivate = key.secret_key.toBytes();
@@ -266,17 +266,17 @@ test "jwt es256 null test" {
     defer _ = alloc.deinit();
     const leaks = alloc.detectLeaks();
     std.debug.print("leaks={any}\n", .{leaks});
-    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.ES256, .{});
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.ES256, .{});
 
-    var payload = p.Payload{
+    const payload = p.Payload{
         .allocator = alloc.allocator(),
         .jti = "sigma boy",
         .iss = "iss",
         .sub = "trump",
     };
 
-    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
-    defer jwtToken.deinit(false, false);
+    var jwtToken = jwt.Token(p.Payload).init(alloc.allocator(), header, payload);
+    defer jwtToken.deinit();
 
     const sigmaToken = try jwtToken.signToken(null);
     defer alloc.allocator().free(sigmaToken);
@@ -293,17 +293,17 @@ test "jwt es384 null test" {
     const leaks = alloc.detectLeaks();
     std.debug.print("leaks={any}\n", .{leaks});
 
-    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.ES384, .{});
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.ES384, .{});
 
-    var payload = p.Payload{
+    const payload = p.Payload{
         .allocator = alloc.allocator(),
         .jti = "sigma boy",
         .iss = "iss",
         .sub = "trump",
     };
 
-    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
-    defer jwtToken.deinit(false, false);
+    var jwtToken = jwt.Token(p.Payload).init(alloc.allocator(), header, payload);
+    defer jwtToken.deinit();
 
     const sigmaToken = try jwtToken.signToken(null);
     defer alloc.allocator().free(sigmaToken);
@@ -313,24 +313,24 @@ test "jwt es384 null test" {
     assert(verify);
 }
 
-//
+// //
 test "jwt es256 with pem test" {
     std.debug.print("es256|pem\n", .{});
     var alloc = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
     defer _ = alloc.deinit();
     const leaks = alloc.detectLeaks();
     std.debug.print("leaks={any}\n", .{leaks});
-    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.ES256, .{});
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.ES256, .{});
 
-    var payload = p.Payload{
+    const payload = p.Payload{
         .allocator = alloc.allocator(),
         .jti = "sigma boy",
         .iss = "iss",
         .sub = "trump",
     };
 
-    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
-    defer jwtToken.deinit(false, false);
+    var jwtToken = jwt.Token(p.Payload).init(alloc.allocator(), header, payload);
+    defer jwtToken.deinit();
 
     var privPem = try jwt.keyFromFile(alloc.allocator(), "private_key.pem");
     defer privPem.deinit();
@@ -352,26 +352,65 @@ test "jwt es256 with pem test" {
     std.debug.print("{any}\n", .{verify});
     assert(verify);
 }
-
+//
 test "jwt es256 pem and sign" {
     std.debug.print("es256|pem\n", .{});
     var alloc = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
     defer _ = alloc.deinit();
     const leaks = alloc.detectLeaks();
     std.debug.print("leaks={any}\n", .{leaks});
-    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.ES256, .{
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.ES256, .{
         .kid = "kid",
     });
 
-    var payload = p.Payload{
+    const payload = p.Payload{
         .allocator = alloc.allocator(),
         .jti = "sigma boy",
         .iss = "iss",
         .sub = "trump",
     };
 
-    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
-    defer jwtToken.deinit(false, false);
+    var jwtToken = jwt.Token(p.Payload).init(alloc.allocator(), header, payload);
+    defer jwtToken.deinit();
+
+    var privPem = try jwt.keyFromFile(alloc.allocator(), "private_key.pem");
+    defer privPem.deinit();
+    var publicPem = try jwt.keyFromFile(alloc.allocator(), "public_key.pem");
+    defer publicPem.deinit();
+    std.debug.print("privatelen={d}\n", .{privPem.value.bytes.len});
+    std.debug.print("publiclen{d}\n", .{publicPem.value.bytes.len});
+
+    var privateBytes: [32]u8 = undefined;
+    @memcpy(&privateBytes, privPem.value.bytes);
+    var publicBytes: [65]u8 = undefined;
+    @memcpy(&publicBytes, publicPem.value.bytes);
+
+    try jwtToken.sign(privateBytes[0..]);
+    const verify = try jwtToken.verifyToken(publicBytes[0..]);
+    std.debug.print("{any}\n", .{verify});
+    std.debug.print("{s}\n", .{jwtToken.raw.?});
+    assert(verify);
+}
+
+const exm = struct {
+    exp: u64,
+};
+test "jwt es256 pem and sign with custom payload" {
+    std.debug.print("es256|pem\n", .{});
+    var alloc = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = alloc.deinit();
+    const leaks = alloc.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.ES256, .{
+        .kid = "kid",
+    });
+
+    const payload = p.CustomPayload(exm).init(alloc.allocator(), .{
+        .exp = 1,
+    });
+
+    var jwtToken = jwt.Token(p.CustomPayload(exm)).init(alloc.allocator(), header, payload);
+    defer jwtToken.deinit();
 
     var privPem = try jwt.keyFromFile(alloc.allocator(), "private_key.pem");
     defer privPem.deinit();
@@ -398,17 +437,18 @@ test "jwt none test" {
     defer _ = alloc.deinit();
     const leaks = alloc.detectLeaks();
     std.debug.print("leaks={any}\n", .{leaks});
-    var header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.none, .{});
+    const header = head.Header.init(alloc.allocator(), typ.Type.JWT, typ.Algorithm.none, .{});
 
-    var payload = p.Payload{
+    const payload = p.Payload{
         .allocator = alloc.allocator(),
         .jti = "sigma boy",
         .iss = "iss",
         .sub = "trump",
     };
 
-    var jwtToken = jwt.Token.init(alloc.allocator(), &header, &payload);
-    defer jwtToken.deinit(false, false);
+    var jwtToken = jwt.Token(p.Payload).init(alloc.allocator(), header, payload);
+
+    defer jwtToken.deinit();
 
     const sigmaToken = try jwtToken.signToken(null);
     defer alloc.allocator().free(sigmaToken);

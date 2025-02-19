@@ -2,14 +2,217 @@ const std = @import("std");
 const date = @import("time.zig");
 const Allocator = std.mem.Allocator;
 const base64url = std.base64.url_safe_no_pad;
+const head = @import("header.zig");
+const algo = @import("algorithm.zig");
 
 var count: usize = 0;
+var count2: usize = 0;
 var unmarshal: bool = false;
+//
+pub fn CustomPayload(comptime ExtraFields: type) type {
+    return struct {
+        const Self = @This();
+        allocator: Allocator,
+
+        extra: ExtraFields,
+
+        pub fn init(allocator: Allocator, extra: ExtraFields) Self {
+            return .{
+                .allocator = allocator,
+                .extra = extra,
+            };
+        }
+        pub fn deinit(self: *Self) void {
+            _ = self;
+        }
+
+        fn extraset(self: *Self) void {
+            _ = self;
+        }
+        pub fn marshalJSON_PAYLOAD(self: Self) ![]const u8 {
+            var js = std.ArrayList(u8).init(self.allocator);
+            defer js.deinit();
+            var writer = js.writer();
+
+            try writer.writeAll("{");
+
+            var first: bool = true;
+            inline for (std.meta.fields(ExtraFields)) |f| {
+                if (@TypeOf(@field(self.extra, f.name)) == []const u8) {
+                    if (!first) {
+                        try writer.writeAll(",");
+                    }
+                    first = false;
+                    try writer.writeAll("\"");
+                    try writer.writeAll(f.name);
+                    try writer.writeAll("\":\"");
+                    try writer.writeAll(@field(self.extra, f.name));
+                    try writer.writeAll("\"");
+                }
+                if (@TypeOf(@field(self.extra, f.name)) == bool) {
+                    if (!first) {
+                        try writer.writeAll(",");
+                    }
+                    first = false;
+                    try writer.writeAll("\"");
+                    try writer.writeAll(f.name);
+                    try writer.writeAll("\":");
+                    try writer.print("{any}", .{@field(self.extra, f.name)});
+                }
+                if (@TypeOf(@field(self.extra, f.name)) == u64) {
+                    if (!first) {
+                        try writer.writeAll(",");
+                    }
+                    first = false;
+                    try writer.writeAll("\"");
+                    try writer.writeAll(f.name);
+                    try writer.writeAll("\":");
+                    try writer.print("{d}", .{@field(self.extra, f.name)});
+                }
+                if (@TypeOf(@field(self.extra, f.name)) == f64) {
+                    if (!first) {
+                        try writer.writeAll(",");
+                    }
+                    first = false;
+                    try writer.writeAll("\"");
+                    try writer.writeAll(f.name);
+                    try writer.writeAll("\":");
+                    try writer.print("{d}", .{@field(self.extra, f.name)});
+                }
+            }
+
+            try writer.writeAll("}");
+
+            return js.toOwnedSlice();
+        }
+        pub fn unmarshalPayload(self: *Self) ![]const u8 {
+            const info = try self.marshalJSON();
+            defer self.allocator.free(info);
+
+            const encodedLen = base64url.Encoder.calcSize(info.len);
+            const dest = try self.allocator.alloc(u8, encodedLen);
+
+            return base64url.Encoder.encode(dest, info);
+        }
+
+        pub fn free_base64url(self: *@This(), dest: []const u8) void {
+            if (count2 > 0) {
+                self.allocator.free(dest);
+                count2 -= 1;
+            }
+        }
+    };
+}
+
+//Free this slice
+pub fn unmarshalPaylod_custom(T: anytype) ![]const u8 {
+    const info = try T.marshalJSON_PAYLOAD();
+    defer T.allocator.free(info);
+
+    const encodedLen = base64url.Encoder.calcSize(info.len);
+
+    const dest = try T.allocator.alloc(u8, encodedLen);
+    return base64url.Encoder.encode(dest, info);
+}
+pub fn unmarshalJSON_custom(comptime T: type, allocator: Allocator, json: []const u8) !std.json.Parsed(T) {
+    if (T == Payload) {
+        const parsed = try std.json.parseFromSlice(struct {
+            jti: ?[]const u8 = null,
+            iss: ?[]const u8 = null,
+            sub: ?[]const u8 = null,
+            aud: ?[]const u8 = null,
+
+            exp: ?u64 = null,
+            nbf: ?u64 = null,
+            iat: ?u64 = null,
+        }, allocator, json, .{ .ignore_unknown_fields = true, .allocate = .alloc_always });
+        errdefer parsed.deinit();
+
+        const payload = Payload{
+            .allocator = allocator,
+            .jti = if (parsed.value.jti) |j| try allocator.dupe(u8, j) else null,
+            .iss = if (parsed.value.iss) |i| try allocator.dupe(u8, i) else null,
+            .sub = if (parsed.value.sub) |s| try allocator.dupe(u8, s) else null,
+
+            .aud = if (parsed.value.aud) |a| try allocator.dupe(u8, a) else null,
+            .exp = if (parsed.value.exp) |e| date.NumericDate.init(allocator, e) else null,
+            .nbf = if (parsed.value.nbf) |n| date.NumericDate.init(allocator, n) else null,
+            .iat = if (parsed.value.iat) |i| date.NumericDate.init(allocator, i) else null,
+        };
+
+        return .{
+            .value = payload,
+            .arena = parsed.arena,
+        };
+    }
+
+    if (T == head.Header) {
+        const parsed = try std.json.parseFromSlice(struct {
+            alg: ?[]const u8 = null,
+            typ: ?[]const u8 = null,
+            kid: ?[]const u8 = null,
+            cty: ?[]const u8 = null,
+        }, allocator, json, .{ .ignore_unknown_fields = true, .allocate = .alloc_always });
+        const typ = if (parsed.value.typ) |t| algo.Type.toType(t) else null;
+        const alg = if (parsed.value.alg) |a| algo.Algorithm.toAlgo(a) else null;
+        var sigOpts: ?head.SignatureOptions = null;
+        if (parsed.value.kid != null or parsed.value.cty != null) {
+            sigOpts = head.SignatureOptions{
+                .kid = parsed.value.kid,
+                .cty = parsed.value.cty,
+            };
+        }
+
+        return .{
+            .value = head.Header{
+                .allocator = allocator,
+                .alg = alg.?,
+                .typ = typ.?,
+                .options = sigOpts orelse .{},
+            },
+            .arena = parsed.arena,
+        };
+    }
+
+    const ExtraType = blk: {
+        const fields = std.meta.fields(T);
+        inline for (fields) |f| {
+            if (f.type != std.mem.Allocator) {
+                break :blk f.type;
+            }
+        }
+        @compileError("No extra field found");
+    };
+
+    const parsed = try std.json.parseFromSlice(ExtraType, allocator, json, .{
+        .ignore_unknown_fields = true,
+        .allocate = .alloc_always,
+    });
+    errdefer parsed.deinit();
+    return .{
+        .value = T{
+            .allocator = allocator,
+            .extra = parsed.value,
+        },
+        .arena = parsed.arena,
+    };
+}
+
+//debug features
+fn printFields(comptime T: type) void {
+    const info = @typeInfo(T);
+
+    inline for (info.@"struct".fields) |field| {
+        std.debug.print("Field: {s}\n", .{field.name});
+        // std.debug.print("Types: {any}", .{field.type});
+    }
+}
 
 pub const Payload = struct {
     allocator: Allocator,
-    jti: ?[]const u8 = null,
+
     iss: ?[]const u8 = null,
+    jti: ?[]const u8 = null,
     sub: ?[]const u8 = null,
     aud: ?[]const u8 = null,
     exp: ?date.NumericDate = null,
@@ -18,24 +221,25 @@ pub const Payload = struct {
 
     pub fn deinit(p: *Payload) void {
         if (p.jti) |j| {
-            if (unmarshal) {
-                p.allocator.free(j);
-            }
+            // if (unmarshal) {
+            // unmarshal = false;
+            p.allocator.free(j);
+            // }
         }
         if (p.iss) |i| {
-            if (unmarshal) {
-                p.allocator.free(i);
-            }
+            // if (unmarshal) {
+            p.allocator.free(i);
+            // }
         }
         if (p.sub) |s| {
-            if (unmarshal) {
-                p.allocator.free(s);
-            }
+            // if (unmarshal) {
+            p.allocator.free(s);
+            // }
         }
         if (p.aud) |a| {
-            if (unmarshal) {
-                p.allocator.free(a);
-            }
+            // if (unmarshal) {
+            p.allocator.free(a);
+            // }
         }
     }
 
@@ -139,7 +343,7 @@ pub const Payload = struct {
         return false;
     }
 
-    pub fn marshalJSON_PAYLOAD(p: *const Payload) ![]const u8 {
+    pub fn marshalJSON_PAYLOAD(p: Payload) ![]const u8 {
         var js = std.ArrayList(u8).init(p.allocator);
         defer js.deinit();
         var writer = js.writer();
@@ -239,9 +443,8 @@ pub const Payload = struct {
         }
     }
 };
-
+//
 pub fn unmarshalJSON_PAYLOAD(allocator: Allocator, js: []const u8) !Payload {
-    unmarshal = true;
     const PayloadJson = struct {
         jti: ?[]const u8 = null,
         iss: ?[]const u8 = null,

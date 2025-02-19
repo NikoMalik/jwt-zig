@@ -29,10 +29,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    unit_tests_1.root_module.addImport("cricket", cricket.module("cricket"));
-
     const unit_tests_2 = b.addTest(.{
-        .root_source_file = b.path("test_parse.zig"),
+        .root_source_file = b.path("test_payload.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -42,6 +40,9 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    //modules import
+    unit_tests_1.root_module.addImport("cricket", cricket.module("cricket"));
 
     // const run_lib_unit_tests_jwt = b.addRunArtifact(lib_unit_tests_jwt);
     const run_unit_test_1 = b.addRunArtifact(unit_tests_1);
