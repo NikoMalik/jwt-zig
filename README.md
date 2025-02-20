@@ -28,7 +28,7 @@ This library is built with simplicity and efficiency in mind. Whether you're bui
 
 ## Algorithms 🔑
 
-| Supported | alg           | Description |
+| Supported | Algorithm     | Description |
 |:---------:|---------------|-------------|
 
 | ✅        | none          | No digital signature or MAC value included |
