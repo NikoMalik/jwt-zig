@@ -661,9 +661,6 @@ pub fn Token(comptime Payload: type) type {
                         if (k.len != std.crypto.sign.Ed25519.PublicKey.encoded_length) {
                             return error.InvalidKeySize;
                         }
-                        // std.debug.print("triggered not null\n", .{});
-                        // var keytemp: [std.crypto.sign.Ed25519.PublicKey.encoded_length]u8 = undefined;
-                        // @memcpy(&keytemp, k);
                         const pk = try std.crypto.sign.Ed25519.PublicKey.fromBytes(@as(*const [std.crypto.sign.Ed25519.PublicKey.encoded_length]u8, @ptrCast(k.ptr)).*);
                         sig = eddsa.Eddsa.verify(signature, sst, pk);
                     } else {

@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const lib_mod = b.addModule("jwt", .{
-        .root_source_file = b.path("jwt.zig"),
+        .root_source_file = b.path("root.zig"),
         .target = target,
         .optimize = optimize,
     });
