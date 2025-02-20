@@ -214,7 +214,56 @@ pub fn main() !void {
 
 ```
 
+# Another example 
 
+```zig
+
+const std = @import("std");
+const jwt = @import("jwt");
+const head = jwt.header;
+
+pub fn main() !void {
+    var alloc = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+
+    defer _ = alloc.deinit();
+    const allocator = alloc.allocator();
+
+    const header = head.Header.init(allocator, jwt.typ.Type.JWT, jwt.typ.Algorithm.ES256, .{ .kid = "kid" });
+
+    const payload = jwt.payload.Payload{
+        .allocator = allocator,
+        .jti = " boy",
+        .iss = "iss",
+        .sub = "trump",
+    };
+
+    var jwtToken = jwt.jwt.Token(jwt.payload.Payload).init(allocator, header, payload);
+    defer jwtToken.deinit();
+
+    var privPem = try jwt.jwt.keyFromFile(allocator, "private_key.pem");
+
+    defer privPem.deinit();
+    var publicPem = try jwt.jwt.keyFromFile(allocator, "public_key.pem");
+    defer publicPem.deinit();
+
+    var privateBytes: [32]u8 = undefined;
+    @memcpy(&privateBytes, privPem.value.bytes);
+    var publicBytes: [65]u8 = undefined;
+    @memcpy(&publicBytes, publicPem.value.bytes);
+
+    const rest = try jwtToken.signToken(privateBytes[0..]);
+    defer allocator.free(rest);
+
+    std.debug.print("res: {s}\n", .{rest});
+
+    const verify = try jwtToken.verifyToken(publicBytes[0..]);
+
+    std.debug.print("verify: {any}\n", .{verify});
+}
+
+
+
+```
 
 
 ---
