@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-pub const pl = @import("payload.zig");
-pub const head = @import("header.zig");
+const pl = @import("payload.zig");
+const head = @import("header.zig");
 const eddsa = @import("eddsa.zig");
 const base64url = std.base64.url_safe_no_pad;
 const base64 = std.base64.standard;

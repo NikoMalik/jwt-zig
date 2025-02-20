@@ -52,8 +52,23 @@ This library is built with simplicity and efficiency in mind. Whether you're bui
 
 ## Installation 📦
 
+```
+// in your build.zig
+    const jwt = b.dependency("jwt", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
-`zig fetch --save https://github.com/NikoMalik/jwt-zig/archive/refs/tags/0.5.0.tar.gz`
+    exe_mod.addImport("jwt", jwt.module("jwt"));
+
+```
+
+
+`zig fetch --save https://github.com/NikoMalik/jwt-zig/archive/refs/tags/0.5.5.tar.gz`
+
+`zig fetch --save https://github.com/NikoMalik/jwt-zig/archive/refs/heads/main.tar.gz`
+
+
 
 or
 
@@ -61,10 +76,24 @@ or
 ```zig
 .dependencies = .{
     .jwt = .{
-        .url = "https://github.com/NikoMalik/jwt-zig/archive/refs/tags/0.5.0.tar.gz",
+        .url = "https://github.com/NikoMalik/jwt-zig/archive/refs/tags/0.5.5.tar.gz",
         //the correct hash will be suggested by zig
     }
 }
+
+```zig 
+
+.dependencies = .{
+    .jwt = .{
+        .url = "https://github.com/NikoMalik/jwt-zig/archive/refs/heads/main.tar.gz",
+        //the correct hash will be suggested by zig
+    }
+}
+
+
+
+
+```
 
 ```
 
