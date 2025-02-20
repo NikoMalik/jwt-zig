@@ -53,7 +53,7 @@ This library is built with simplicity and efficiency in mind. Whether you're bui
 ## Installation 📦
 
 
-`zig fetch --save https://github.com/NikoMalik/jwt-zig/archive/refs/tags/v0.5.0.tar.gz`
+`zig fetch --save https://github.com/NikoMalik/jwt-zig/archive/refs/tags/0.5.0.tar.gz`
 
 or
 
@@ -61,7 +61,7 @@ or
 ```zig
 .dependencies = .{
     .jwt = .{
-        .url = "https://github.com/NikoMalik/jwt-zig/archive/refs/tags/v0.5.0.tar.gz",
+        .url = "https://github.com/NikoMalik/jwt-zig/archive/refs/tags/0.5.0.tar.gz",
         //the correct hash will be suggested by zig
     }
 }
