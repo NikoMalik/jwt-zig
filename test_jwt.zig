@@ -457,3 +457,41 @@ test "jwt none test" {
     std.debug.print("{any}\n", .{verify});
     // assert(verify);
 }
+
+test "jwt custom es384 test" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    const leaks = gpa.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+
+    const header = head.Header.init(allocator, typ.Type.JWT, typ.Algorithm.ES384, .{ .cty = "jj" });
+
+    const payload = p.CustomPayload(exm).init(allocator, .{
+        .exp = 2,
+    });
+
+    var jwtToken = jwt.Token(p.CustomPayload(exm)).init(allocator, header, payload);
+    defer jwtToken.deinit();
+
+    var privPem = try jwt.keyFromFile(allocator, "private_key_es384.pem"); //$ openssl ecparam -name secp384r1 -genkey -noout -out private_key_es384.pem
+
+    defer privPem.deinit();
+    var publicPem = try jwt.keyFromFile(allocator, "public_key_es384.pem"); //$ openssl ec -in private_key_es384.pem -pubout -out public_key_es384.pem
+
+    defer publicPem.deinit();
+    std.debug.print("privatelen={d}\n", .{privPem.value.bytes.len});
+    std.debug.print("publiclen{d}\n", .{publicPem.value.bytes.len});
+
+    var privateBytes: [48]u8 = undefined; // for es384 key private key is 48
+    @memcpy(&privateBytes, privPem.value.bytes);
+    var publicBytes: [97]u8 = undefined; // for es384 key public key is 97
+
+    @memcpy(&publicBytes, publicPem.value.bytes);
+
+    try jwtToken.sign(privateBytes[0..]);
+    const verify = try jwtToken.verifyToken(publicBytes[0..]);
+    std.debug.print("{any}\n", .{verify});
+    std.debug.print("{s}\n", .{jwtToken.raw.?});
+    assert(verify);
+}

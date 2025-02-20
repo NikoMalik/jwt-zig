@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const pl = @import("payload.zig");
-const head = @import("header.zig");
+pub const pl = @import("payload.zig");
+pub const head = @import("header.zig");
 const eddsa = @import("eddsa.zig");
 const base64url = std.base64.url_safe_no_pad;
 const base64 = std.base64.standard;
@@ -30,13 +30,6 @@ const Key_cipr = struct {
 
 //You can add only payload.CustomPayload or payload.Payload
 pub fn Token(comptime Payload: type) type {
-    //TODO MAKE ANOTHER CUSTOM PAYLOAD WITH CUSTOM INPLEMENT
-    //example my_payload = struct {.some = "some"}; Token(my_payload).init
-    //but why if we have pl.CustomPayload ?
-    //i should think about this
-    // if (!std.meta.hasMethod(Payload, "deinit")) {
-    //     @compileError("Payload must not have deinit method");
-    // }
     return struct {
         allocator: Allocator,
         payload: Payload,
@@ -601,10 +594,10 @@ pub fn Token(comptime Payload: type) type {
                     var es: ES384.KeyPair = undefined;
                     if (key) |k| {
                         if (k.len != ES384.SecretKey.encoded_length) {
+                            std.debug.print("triggered private len {d}\n", .{k.len});
+                            std.debug.print("want this len: {d}\n", .{ES384.SecretKey.encoded_length});
                             return error.InvalidKeySize;
                         }
-                        // var ktemp: [ES384.SecretKey.encoded_length]u8 = undefined;
-                        // @memcpy(&ktemp, k);
                         es = try ES384.KeyPair.fromSecretKey(try ES384.SecretKey.fromBytes(@as(*const [ES384.SecretKey.encoded_length]u8, @ptrCast(k.ptr)).*));
                     } else {
                         es = try t.generateKeyPairEs384();
@@ -749,13 +742,13 @@ pub fn Token(comptime Payload: type) type {
 
                     if (key) |k| {
                         switch (k.len) {
-                            32 => {
+                            ES256.PublicKey.compressed_sec1_encoded_length => {
                                 // var unsompressed: [32]u8 = undefined;
                                 // @memcpy(&unsompressed, k);
                                 const pk = try ES256.PublicKey.fromSec1(@as(*const [32]u8, @ptrCast(k.ptr)));
                                 sig = verify(ES256.Signature, signature, sst, pk);
                             },
-                            65 => {
+                            ES256.PublicKey.uncompressed_sec1_encoded_length => {
                                 const pk = try ES256.PublicKey.fromSec1(@as(*const [65]u8, @ptrCast(k.ptr)));
                                 sig = verify(ES256.Signature, signature, sst, pk);
                             },
@@ -777,16 +770,14 @@ pub fn Token(comptime Payload: type) type {
                     var sig: bool = undefined;
                     if (key) |k| {
                         switch (k.len) {
-                            32 => {
-                                // var unsompressed: [32]u8 = undefined;
-                                // @memcpy(&unsompressed, k);
-                                const pk = try ES384.PublicKey.fromSec1(@as(*const [32]u8, @ptrCast(k.ptr)));
+                            ES384.PublicKey.compressed_sec1_encoded_length => {
+                                const pk = try ES384.PublicKey.fromSec1(@as(*const [48]u8, @ptrCast(k.ptr)));
                                 sig = verify(ES384.Signature, signature, sst, pk);
                             },
-                            65 => {
+                            ES384.PublicKey.uncompressed_sec1_encoded_length => {
                                 // var unsompressed: [65]u8 = undefined;
                                 // @memcpy(&unsompressed, k);
-                                const pk = try ES384.PublicKey.fromSec1(@as(*const [65]u8, @ptrCast(k.ptr)));
+                                const pk = try ES384.PublicKey.fromSec1(@as(*const [97]u8, @ptrCast(k.ptr)));
                                 sig = verify(ES384.Signature, signature, sst, pk);
                             },
                             else => return error.InvalidKeyLength,
