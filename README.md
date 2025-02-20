@@ -36,6 +36,7 @@ This library is built with simplicity and efficiency in mind. Whether you're bui
 - ✅        | HS384         | HMAC using SHA-384 hash algorithm |
 - ✅        | HS512         | HMAC using SHA-512 hash algorithm |
 - ✅        | ES256         | ECDSA using P-256 curve and SHA-256 hash algorithm |
+- ✅        | EdDsa         | Edwards curve digital signature algorithm and SHA-512 hash algorithm |
 - ✅        | ES384         | ECDSA using P-384 curve and SHA-384 hash algorithm |
 - ❌        | PS256         | RSASSA-PSS using SHA-256 hash algorithm |
 - ❌        | ES512         | ECDSA using P-521 curve and SHA-512 hash algorithm |
