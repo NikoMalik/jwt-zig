@@ -26,7 +26,7 @@ This library is built with simplicity and efficiency in mind. Whether you're bui
 
 ---
 
-## Algorithms
+## Algorithms 🔑
 
 | Supported | alg           | Description |
 |:---------:|---------------|-------------|
