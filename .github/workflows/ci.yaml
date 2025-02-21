@@ -1,0 +1,79 @@
+name: Zig JWT CI
+
+on:
+  merge_group:
+
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  test_alpine:
+
+    runs-on: ubuntu-latest
+    container:
+
+      image: alpine
+      options: --security-opt seccomp=unconfined
+    steps:
+      - run: apk add -U git github-cli iproute2-tc
+
+      - run: git config --system --add safe.directory '*'
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: chmod +x ./zig/download.sh
+      - run: ./zig/download.sh latest
+      - run: ./zig/zig build test
+
+  test_ubuntu:
+    strategy:
+      matrix:
+        include:
+
+          - { os: 'ubuntu-latest' }
+         
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: chmod +x ./zig/download.sh
+      - run: ./zig/download.sh latest
+      - run: ./zig/zig build test
+
+
+  test_windows:
+    runs-on: windows-latest
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: chmod +x .\zig\download.bat
+      - run: .\zig\download.bat latest
+        shell: cmd
+      - run: .\zig\zig build test
+
+  test_macos:
+
+    strategy:
+      matrix:
+        include:
+          - { os: 'macos-latest' }
+          - { os: 'macos-13' }
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: chmod +x ./zig/download.sh
+      - run: ./zig/download.sh latest
+      - run: ./zig/zig build test
+
