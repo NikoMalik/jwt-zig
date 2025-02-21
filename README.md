@@ -31,7 +31,7 @@ Zig >= 0.14.0-dev.2851+b074fb7dd
 
 ## Algorithms 🔑
 
-| Supported | Algorithm     | Description |
+
 
 
 - ✅        | none          | No digital signature or MAC value included |
@@ -73,7 +73,7 @@ Zig >= 0.14.0-dev.2851+b074fb7dd
 
 
 
-or
+### or
 
 
 ```zig
@@ -121,7 +121,7 @@ mv jwt-zig /path/to/your/project/directory
 
 ### Registered Payload
 
-```
+```zig
 
 
 
@@ -170,7 +170,7 @@ pub fn main() !void {
 ---
 ### Custom Payload
 
-```
+```zig
 
 
 const customPayload = struct {
