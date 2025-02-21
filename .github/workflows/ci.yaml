@@ -34,7 +34,7 @@ jobs:
         include:
 
           - { os: 'ubuntu-latest' }
-          - { os: 'ubuntu-latest-arm64' }
+         
 
     runs-on: ${{ matrix.os }}
     steps:
