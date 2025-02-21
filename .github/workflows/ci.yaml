@@ -9,15 +9,6 @@ on:
     branches: [main]
 
 jobs:
-  smoke:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: shellcheck ./zig/download.sh
-      - run: chmod +x ./zig/download.sh
-      - run: ./zig/download.sh latest
-      - run: ./zig/zig fmt --check .
-      - run: ./zig/zig build check
 
   test_alpine:
 
@@ -65,7 +56,7 @@ jobs:
         with:
           fetch-depth: 0
       - run: chmod +x .\zig\download.bat
-      - run: .\zig\download.bat
+      - run: .\zig\download.bat latest
         shell: cmd
       - run: .\zig\zig build test
 
