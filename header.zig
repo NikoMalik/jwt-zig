@@ -63,7 +63,7 @@ pub const Header = struct {
             }
         }
 
-        const info = h.marshalJSON() catch "";
+        const info = try h.marshalJSON();
         defer h.allocator.free(info);
 
         // CALCULATING SAFETY LEN FOR BASE64URL
@@ -89,11 +89,6 @@ pub const Header = struct {
 };
 
 pub const SignatureOptions = struct {
-    duplicate_field_behavior: enum {
-        use_first,
-        @"error",
-        use_last,
-    } = .@"error",
     kid: ?[]const u8 = null,
     cty: ?[]const u8 = null,
 };

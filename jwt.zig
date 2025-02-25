@@ -225,6 +225,7 @@ pub fn Token(comptime Payload: type) type {
 
                     return tokenRaw;
                 },
+
                 .HS256 => {
                     const writer = js.writer();
                     var hmac: [HS256.mac_length]u8 = undefined;

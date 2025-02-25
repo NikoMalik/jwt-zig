@@ -8,7 +8,7 @@ const algo = @import("algorithm.zig");
 var count: usize = 0;
 var count2: usize = 0;
 var unmarshal: bool = false;
-//
+
 pub fn CustomPayload(comptime ExtraFields: type) type {
     return struct {
         const Self = @This();
