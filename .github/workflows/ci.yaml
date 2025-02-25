@@ -69,32 +69,27 @@ jobs:
     steps:
       - name: Configure Git
         run: git config --global core.autocrlf false
-      - uses: actions/checkout@v4
-
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Install OpenSSL
         shell: pwsh
         run: |
-
-        $url = "https://slproweb.com/download/Win64OpenSSL-3_1_4.msi"
-        Invoke-WebRequest -Uri $url -OutFile openssl.msi
-        Start-Process msiexec -ArgumentList "/i openssl.msi /quiet /qn /norestart" -Wait
-        Remove-Item openssl.msi
-        
-
-       
-        $env:OPENSSL_DIR = "${env:ProgramFiles}\OpenSSL-Win64"
-        echo "OPENSSL_DIR=$env:OPENSSL_DIR" >> $env:GITHUB_ENV
-        echo "${env:ProgramFiles}\OpenSSL-Win64\bin" >> $env:GITHUB_PATH
-        
-      
-        Get-ChildItem "${env:ProgramFiles}\OpenSSL-Win64\bin\libcrypto-3-x64.dll"
-        $env:OPENSSL_DIR = "${env:ProgramFiles}\OpenSSL-Win64"
-        echo "OPENSSL_DIR=$env:OPENSSL_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $url = "https://slproweb.com/download/Win64OpenSSL-3_1_4.msi"
+          Invoke-WebRequest -Uri $url -OutFile openssl.msi
+          Start-Process msiexec -ArgumentList "/i openssl.msi /quiet /qn /norestart" -Wait
+          Remove-Item openssl.msi
+          
+          $env:OPENSSL_DIR = "${env:ProgramFiles}\OpenSSL-Win64"
+          echo "OPENSSL_DIR=$env:OPENSSL_DIR" >> $env:GITHUB_ENV
+          echo "${env:ProgramFiles}\OpenSSL-Win64\bin" >> $env:GITHUB_PATH
+          
+         
+          Get-ChildItem "${env:ProgramFiles}\OpenSSL-Win64\bin\libcrypto-3-x64.dll"
       - name: Setup Zig
-        run: .\zig\download.bat latest
         shell: cmd
+        run: .\zig\download.bat latest
       - name: Build and test
         run: .\zig\zig build test
 
