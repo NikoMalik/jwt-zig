@@ -57,7 +57,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - run:  .\zig\download.bat
+
+        
+      - run: winget install -e --id OpenSSL.OpenSSL
+        shell: pwsh
+
       - run: .\zig\download.bat latest
         shell: cmd
       - run: .\zig\zig build test
