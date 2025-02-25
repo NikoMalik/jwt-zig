@@ -11,23 +11,23 @@ on:
 jobs:
 
   test_alpine:
+  runs-on: ubuntu-latest
+  container:
+    image: alpine
+    options: --security-opt seccomp=unconfined
+  steps:
+    - name: Install dependencies
+      run: |
+        apk update
+        apk add -U git openssl-dev gcc musl-dev
+    - run: git config --system --add safe.directory '*'
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-    runs-on: ubuntu-latest
-    container:
-
-      image: alpine
-      options: --security-opt seccomp=unconfined
-    steps:
-      - run: apk add -U git github-cli iproute2-tc
-
-      - run: git config --system --add safe.directory '*'
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - run: apk add -U git openssl-dev gcc musl-devudo apt-get update && sudo apt-get install -y libssl-dev
-      - run: chmod +x ./zig/download.sh
-      - run: ./zig/download.sh latest
-      - run: ./zig/zig build test
+    - run: chmod +x ./zig/download.sh
+    - run: ./zig/download.sh latest
+    - run: ./zig/zig build test
 
   test_ubuntu:
     strategy:
