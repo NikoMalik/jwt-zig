@@ -66,10 +66,7 @@ jobs:
       - name: Install OpenSSL
         shell: pwsh
         run: |
-          $url = "https://slproweb.com/download/Win64OpenSSL-3_1_4.msi"
-          Invoke-WebRequest -Uri $url -OutFile openssl.msi
-          Start-Process msiexec -ArgumentList "/i openssl.msi /quiet /qn /norestart" -Wait
-          Remove-Item openssl.msi
+          winget install -e --id ShiningLight.OpenSSL 
 
           $env:OPENSSL_DIR = "${env:ProgramFiles}\OpenSSL-Win64"
           echo "OPENSSL_DIR=$env:OPENSSL_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append
