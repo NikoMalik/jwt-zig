@@ -9,78 +9,93 @@ on:
     branches: [main]
 
 jobs:
-
   test_alpine:
-  runs-on: ubuntu-latest
-  container:
-    image: alpine
-    options: --security-opt seccomp=unconfined
-  steps:
-    - name: Install dependencies
-      run: |
-        apk update
-        apk add -U git openssl-dev gcc musl-dev
-    - run: git config --system --add safe.directory '*'
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:latest
+      options: --security-opt seccomp=unconfined
+    steps:
+      - name: Install dependencies
+        run: |
+          apk update
 
-    - run: chmod +x ./zig/download.sh
-    - run: ./zig/download.sh latest
-    - run: ./zig/zig build test
+          apk add -U git openssl-dev gcc musl-dev 
+      - name: Configure Git
+        run: git config --system --add safe.directory '*'
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Zig
+        run: |
+
+          chmod +x ./zig/download.sh
+
+          ./zig/download.sh latest
+      - name: Build and test
+        run: ./zig/zig build test
 
   test_ubuntu:
-    strategy:
-      matrix:
-        include:
-
-          - { os: 'ubuntu-latest' }
-         
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - run: sudo apt-get update && sudo apt-get install -y libssl-dev
-      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
-      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      - run: chmod +x ./zig/download.sh
-      - run: ./zig/download.sh latest
-      - run: ./zig/zig build test
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev
+      - name: Setup Zig
+        run: |
+          chmod +x ./zig/download.sh
+          ./zig/download.sh latest
+      - name: Build and test
+
+        run: ./zig/zig build test
 
 
   test_windows:
     runs-on: windows-latest
     steps:
-      - run: git config --global core.autocrlf false
+      - name: Configure Git
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
+
         with:
           fetch-depth: 0
-
-        
-      - run: winget install -e --id OpenSSL.OpenSSL
+      - name: Install OpenSSL
         shell: pwsh
+        run: |
+          $url = "https://slproweb.com/download/Win64OpenSSL-3_1_4.msi"
+          Invoke-WebRequest -Uri $url -OutFile openssl.msi
+          Start-Process msiexec -ArgumentList "/i openssl.msi /quiet /qn /norestart" -Wait
+          Remove-Item openssl.msi
 
-      - run: .\zig\download.bat latest
+          $env:OPENSSL_DIR = "${env:ProgramFiles}\OpenSSL-Win64"
+          echo "OPENSSL_DIR=$env:OPENSSL_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Setup Zig
+        run: .\zig\download.bat latest
         shell: cmd
-      - run: .\zig\zig build test
+      - name: Build and test
+        run: .\zig\zig build test
 
   test_macos:
-
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-          - { os: 'macos-latest' }
-          - { os: 'macos-13' }
-    runs-on: ${{ matrix.os }}
-
+        os: [macos-latest, macos-13]
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - run: brew update && brew install openssl
-      - run: chmod +x ./zig/download.sh
-      - run: ./zig/download.sh latest
-      - run: ./zig/zig build test
-
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install openssl 
+          echo "PKG_CONFIG_PATH=$(brew --prefix openssl)/lib/pkgconfig" >> $GITHUB_ENV
+      - name: Setup Zig
+        run: |
+          chmod +x ./zig/download.sh
+          ./zig/download.sh latest
+      - name: Build and test
+        run: ./zig/zig build test
