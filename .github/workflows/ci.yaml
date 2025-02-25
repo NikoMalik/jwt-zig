@@ -19,12 +19,13 @@ jobs:
         run: |
           apk update
 
-          apk add -U git openssl-dev gcc musl-dev 
+          apk add -U git openssl-dev gcc musl-dev cmake make
       - name: Configure Git
         run: git config --system --add safe.directory '*'
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive
 
       - name: Setup Zig
         run: |
@@ -66,6 +67,16 @@ jobs:
       - name: Install OpenSSL
         shell: pwsh
         run: |
+
+          $progressPreference = 'silentlyContinue'
+          Write-Host "Installing WinGet PowerShell module from PSGallery..."
+
+          Install-PackageProvider -Name NuGet -Force | Out-Null
+          Install-Module -Name Microsoft.WinGet.Client -Force -Repository PSGallery | Out-Null
+
+          Write-Host "Using Repair-WinGetPackageManager cmdlet to bootstrap WinGet..."
+          Repair-WinGetPackageManager
+          Write-Host "Done."
           winget install -e --id ShiningLight.OpenSSL 
 
           $env:OPENSSL_DIR = "${env:ProgramFiles}\OpenSSL-Win64"
