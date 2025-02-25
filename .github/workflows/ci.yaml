@@ -26,6 +26,14 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+      - name: Build OpenSSL from source
+        run: |
+          git clone https://github.com/openssl/openssl.git
+          cd openssl
+          ./config --prefix=/usr/local --openssldir=/usr/local/ssl
+
+          make -j$(nproc)
+          make install
 
       - name: Setup Zig
         run: |
@@ -70,6 +78,8 @@ jobs:
 
           $progressPreference = 'silentlyContinue'
           Write-Host "Installing WinGet PowerShell module from PSGallery..."
+
+          Import-Module PackageManagement -Force
 
           Install-PackageProvider -Name NuGet -Force | Out-Null
           Install-Module -Name Microsoft.WinGet.Client -Force -Repository PSGallery | Out-Null
