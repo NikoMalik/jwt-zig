@@ -19,7 +19,7 @@ jobs:
         run: |
           apk update
 
-          apk add -U git openssl-dev gcc musl-dev cmake make
+          apk add -U git openssl-dev gcc musl-dev cmake  make perl linux-headers
       - name: Configure Git
         run: git config --system --add safe.directory '*'
       - uses: actions/checkout@v4
@@ -30,6 +30,7 @@ jobs:
         run: |
           git clone https://github.com/openssl/openssl.git
           cd openssl
+          perl -v
           ./config --prefix=/usr/local --openssldir=/usr/local/ssl
 
           make -j$(nproc)
@@ -76,21 +77,21 @@ jobs:
         shell: pwsh
         run: |
 
-          $progressPreference = 'silentlyContinue'
-          Write-Host "Installing WinGet PowerShell module from PSGallery..."
+        $url = "https://slproweb.com/download/Win64OpenSSL-3_1_4.msi"
+        Invoke-WebRequest -Uri $url -OutFile openssl.msi
+        Start-Process msiexec -ArgumentList "/i openssl.msi /quiet /qn /norestart" -Wait
+        Remove-Item openssl.msi
+        
 
-          Import-Module PackageManagement -Force
-
-          Install-PackageProvider -Name NuGet -Force | Out-Null
-          Install-Module -Name Microsoft.WinGet.Client -Force -Repository PSGallery | Out-Null
-
-          Write-Host "Using Repair-WinGetPackageManager cmdlet to bootstrap WinGet..."
-          Repair-WinGetPackageManager
-          Write-Host "Done."
-          winget install -e --id ShiningLight.OpenSSL 
-
-          $env:OPENSSL_DIR = "${env:ProgramFiles}\OpenSSL-Win64"
-          echo "OPENSSL_DIR=$env:OPENSSL_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append
+       
+        $env:OPENSSL_DIR = "${env:ProgramFiles}\OpenSSL-Win64"
+        echo "OPENSSL_DIR=$env:OPENSSL_DIR" >> $env:GITHUB_ENV
+        echo "${env:ProgramFiles}\OpenSSL-Win64\bin" >> $env:GITHUB_PATH
+        
+      
+        Get-ChildItem "${env:ProgramFiles}\OpenSSL-Win64\bin\libcrypto-3-x64.dll"
+        $env:OPENSSL_DIR = "${env:ProgramFiles}\OpenSSL-Win64"
+        echo "OPENSSL_DIR=$env:OPENSSL_DIR" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Setup Zig
         run: .\zig\download.bat latest
         shell: cmd
