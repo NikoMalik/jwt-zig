@@ -74,29 +74,51 @@ pub fn build(b: *std.Build) void {
         lib.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
         lib.linkSystemLibrary("libssl-3-x64");
         lib.linkSystemLibrary("libcrypto-3-x64");
+        lib.linkSystemLibrary("crypt32");
+        lib.linkSystemLibrary("ws2_32");
+        lib.linkSystemLibrary("advapi32");
+        lib_mod.linkSystemLibrary("crypt32");
+        lib_mod.linkSystemLibrary("ws2_32");
+        lib_mod.linkSystemLibrary("advapi32");
         lib.linkLibC();
 
         unit_tests_1.linkSystemLibrary("libssl-3-x64");
         unit_tests_1.linkSystemLibrary("libcrypto-3-x64");
         unit_tests_1.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
+        unit_tests_1.linkSystemLibrary("crypt32");
+        unit_tests_1.linkSystemLibrary("ws2_32");
+        unit_tests_1.linkSystemLibrary("advapi32");
         unit_tests_1.linkLibC();
 
         unit_tests_3.linkSystemLibrary("libssl-3-x64");
         unit_tests_3.linkSystemLibrary("libcrypto-3-x64");
         unit_tests_3.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
+        unit_tests_3.linkSystemLibrary("crypt32");
+        unit_tests_3.linkSystemLibrary("ws2_32");
+        unit_tests_3.linkSystemLibrary("advapi32");
+
         unit_tests_3.linkLibC();
 
         rsa_test.linkSystemLibrary("libssl-3-x64");
         rsa_test.linkSystemLibrary("libcrypto-3-x64");
         rsa_test.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
+        rsa_test.linkSystemLibrary("crypt32");
+        rsa_test.linkSystemLibrary("ws2_32");
+        rsa_test.linkSystemLibrary("advapi32");
         rsa_test.linkLibC();
 
         jwt_test.linkSystemLibrary("libssl-3-x64");
         jwt_test.linkSystemLibrary("libcrypto-3-x64");
         jwt_test.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
+        jwt_test.linkSystemLibrary("crypt32");
+        jwt_test.linkSystemLibrary("ws2_32");
+        jwt_test.linkSystemLibrary("advapi32");
         jwt_test.linkLibC();
 
         unit_tests_2.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
+        unit_tests_2.linkSystemLibrary("crypt32");
+        unit_tests_2.linkSystemLibrary("ws2_32");
+        unit_tests_2.linkSystemLibrary("advapi32");
         unit_tests_2.linkLibC();
     } else {
         lib_mod.linkSystemLibrary("ssl", .{});
