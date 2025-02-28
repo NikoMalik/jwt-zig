@@ -119,18 +119,18 @@ pub fn build(b: *std.Build) void {
     // }
     //
     if (builtin.target.os.tag == .windows) {
-        lib_mod.linkSystemLibrary("libssl-3", .{});
-        lib_mod.linkSystemLibrary("libcrypto-3", .{});
-        unit_tests_1.linkSystemLibrary("libssl-3");
-        unit_tests_1.linkSystemLibrary("libcrypto-3");
-        unit_tests_3.linkSystemLibrary("libssl-3");
-        unit_tests_3.linkSystemLibrary("libcrypto-3");
+        lib_mod.linkSystemLibrary("libssl", .{});
+        lib_mod.linkSystemLibrary("libcrypto", .{});
+        unit_tests_1.linkSystemLibrary("libssl");
+        unit_tests_1.linkSystemLibrary("libcrypto");
+        unit_tests_3.linkSystemLibrary("libssl");
+        unit_tests_3.linkSystemLibrary("libcrypto");
 
-        rsa_test.linkSystemLibrary("libssl-3");
-        rsa_test.linkSystemLibrary("libcrypto-3");
+        rsa_test.linkSystemLibrary("libssl");
+        rsa_test.linkSystemLibrary("libcrypto");
 
-        jwt_test.linkSystemLibrary("libssl-3");
-        jwt_test.linkSystemLibrary("libcrypto-3");
+        jwt_test.linkSystemLibrary("libssl");
+        jwt_test.linkSystemLibrary("libcrypto");
         lib_mod.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
         lib.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
         unit_tests_1.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
