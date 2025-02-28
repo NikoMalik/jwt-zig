@@ -86,6 +86,8 @@ jobs:
         run: |
           openssl version 
           Get-Command openssl | Select-Object -ExpandProperty Source 
+          Get-ChildItem "C:\Program Files\OpenSSL\bin\libssl*"
+          Get-ChildItem "C:\Program Files\OpenSSL\bin\libcrypto*"
       - name: Setup Zig
         run: .\zig\download.bat latest
         shell: cmd
