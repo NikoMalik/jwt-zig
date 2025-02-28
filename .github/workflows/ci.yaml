@@ -74,14 +74,20 @@ jobs:
         run: |
           choco install openssl.light -y
           refreshenv
-          # echo "C:\Program Files\OpenSSL-Win64\bin" >> $env:GITHUB_PATH
           # $env:OPENSSL_DIR = "C:\Program Files\OpenSSL-Win64"
           # echo "OPENSSL_DIR=$env:OPENSSL_DIR" >> $env:GITHUB_ENV
+          $opensslPath = "C:\Program Files\OpenSSL\bin >> $env:GITHUB_PATH
+          Write-Output "Adding OpenSSL to PATH: $opensslPath"
+          [Environment]::SetEnvironmentVariable("PATH", "$env:PATH;$opensslPath", "Machine")
+          $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine")
+          echo "$opensslPath" >> $env:GITHUB_PATH
+          Get-Command openssl -ErrorAction Stop | Select-Object -ExpandProperty Definition
       - name: Verify OpenSSL installation
         run: |
           openssl version 
+          Get-ChildItem -Path "$env:ProgramFiles\OpenSSL\bin\openssl.exe"
           Get-Command openssl | Select-Object -ExpandProperty Definition
-          dir "C:\Program Files\OpenSSL\bin"
+          Write-Output "Current PATH: $env:PATH"
 
       - name: Setup Zig
         run: .\zig\download.bat latest
@@ -101,7 +107,6 @@ jobs:
         run: |
           brew update
           brew install openssl
-          echo "PKG_CONFIG_PATH=$(brew --prefix openssl)/lib/pkgconfig" >> $GITHUB_ENV
       - name: Setup Zig
         run: |
           chmod +x ./zig/download.sh
