@@ -69,7 +69,7 @@ pub fn build(b: *std.Build) void {
     if (builtin.target.os.tag == .windows) {
         lib_mod.linkSystemLibrary("libssl-3-x64", .{});
         lib_mod.linkSystemLibrary("libcrypto-3-x64", .{});
-        lib_mod.addSystemIncludePath(.{ .cwd_relative = "C:/Program Files/OpenSSL/include" });
+
         lib_mod.addLibraryPath(.{ .cwd_relative = "C:/Program Files/OpenSSL/bin" });
         lib.addLibraryPath(.{ .cwd_relative = "C:/Program Files/OpenSSL/bin" });
         lib.linkSystemLibrary("libssl-3-x64");

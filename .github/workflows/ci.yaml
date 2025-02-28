@@ -88,12 +88,12 @@ jobs:
           Get-Command openssl | Select-Object -ExpandProperty Source 
           Get-ChildItem "C:\Program Files\OpenSSL\bin\libssl*"
           Get-ChildItem "C:\Program Files\OpenSSL\bin\libcrypto*"
-          Get-ChildItem -Path "C:\Program Files\OpenSSL\bin\*.h"
+          Get-ChildItem -Path "C:\Program Files\OpenSSL\bin\*.h" -Recurse
       - name: Setup Zig
         run: .\zig\download.bat latest
         shell: cmd
       - name: Build and test
-        run: .\zig\zig build test .\zig\zig test rsa.zig -lc
+        run: .\zig\zig build test .\zig\zig test
         
 
 
