@@ -88,6 +88,7 @@ jobs:
           Get-Command openssl | Select-Object -ExpandProperty Source 
           Get-ChildItem "C:\Program Files\OpenSSL\bin\libssl*"
           Get-ChildItem "C:\Program Files\OpenSSL\bin\libcrypto*"
+          Get-ChildItem "C:\Program Files\OpenSSL\bin\sha.h"
       - name: Setup Zig
         run: .\zig\download.bat latest
         shell: cmd
