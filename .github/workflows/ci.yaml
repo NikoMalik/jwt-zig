@@ -73,7 +73,7 @@ jobs:
         shell: pwsh
         run: |
           choco install openssl.light -y
-          refreshenv
+          Import-Module $env:ChocolateyInstall\helpers\chocolateyProfile.psm1
       
        
           $opensslPath = "C:\Program Files\OpenSSL\bin" 
@@ -103,7 +103,8 @@ jobs:
       - name: Install dependencies
         run: |
           brew update
-          brew install openssl@3
+          brew install openssl
+          openssl version
       - name: Setup Zig
         run: |
           chmod +x ./zig/download.sh
