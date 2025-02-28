@@ -9,14 +9,23 @@ const cwd = std.fs.cwd();
 const ssl = @cImport({
     @cDefine("__FILE__", "\"rsa.zig\"");
     @cDefine("__LINE__", "0");
+
     @cDefine("OPENSSL_API_COMPAT", "10100");
-    @cInclude("openssl/rsa.h");
     @cInclude("openssl/sha.h");
+    @cInclude("openssl/rsa.h");
     @cInclude("openssl/pem.h");
     @cInclude("openssl/crypto.h");
     @cInclude("openssl/err.h");
     @cInclude("openssl/bio.h");
 });
+
+pub const PS256 = RSAAlgorithm(2048, .RSA_PSS, .sha256);
+pub const PS384 = RSAAlgorithm(3072, .RSA_PSS, .sha384);
+pub const PS512 = RSAAlgorithm(4096, .RSA_PSS, .sha512);
+
+pub const RS256 = RSAAlgorithm(2048, .RSASSA_PKCS1_v1_5, .sha256);
+pub const RS384 = RSAAlgorithm(3072, .RSASSA_PKCS1_v1_5, .sha384);
+pub const RS512 = RSAAlgorithm(4096, .RSASSA_PKCS1_v1_5, .sha512);
 
 const BN_CTX = ssl.BN_CTX;
 const BN_MONT_CTX = ssl.BN_MONT_CTX;
@@ -125,6 +134,8 @@ const Error = error{
     BufferTooSmall,
     SignFailed,
     VerifyFailed,
+    BitsIncorrect,
+    InputTooLarge,
     @"256",
     @"384",
     @"512",
@@ -133,14 +144,23 @@ const Error = error{
 // Hash function parameters
 //=========================
 const HashParams = struct {
-    const sha256 = .{ .evp_fn = ssl.EVP_sha256, .salt_length = 32 };
-    const sha384 = .{ .evp_fn = ssl.EVP_sha384, .salt_length = 48 };
-    const sha512 = .{ .evp_fn = ssl.EVP_sha512, .salt_length = 64 };
+    const sha256 = .{
+        .evp_fn = ssl.EVP_sha256,
+        .salt_length = 32,
+    };
+    const sha384 = .{
+        .evp_fn = ssl.EVP_sha384,
+        .salt_length = 48,
+    };
+    const sha512 = .{
+        .evp_fn = ssl.EVP_sha512,
+        .salt_length = 64,
+    };
 };
 
 // Load private key from file
 //===========================
-fn loadPrivateKey(path: []const u8) !*EVP_PKEY {
+pub fn loadPrivateKey(path: []const u8) !*EVP_PKEY {
     const file = try cwd.openFile(path, .{});
     defer file.close();
 
@@ -204,15 +224,6 @@ fn deleteFile(path: []const u8) !void {
     try cwd.deleteFile(path);
 }
 
-fn hexToBytes(hex: []const u8) ![]u8 {
-    if (hex.len % 2 != 0) return error.InvalidHexLength;
-    const bytes = try std.testing.allocator.alloc(u8, hex.len / 2);
-    for (0..bytes.len) |i| {
-        bytes[i] = try std.fmt.parseInt(u8, hex[2 * i .. 2 * i + 2], 16);
-    }
-    return bytes;
-}
-
 fn constructPublicKey(n: *BIGNUM, e: *BIGNUM) !RSAAlgorithm(2048, .RSA_PSS, .sha256).PublicKey {
     const rsa_pub = ssl.RSA_new() orelse return error.MemoryAllocation;
     if (ssl.RSA_set0_key(rsa_pub, n, e, null) != 1) {
@@ -271,12 +282,52 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
     };
 
     return struct {
-        const modulus_bytes = (modulus_bits + 7) / 8;
+        const Self = @This();
+        pub const modulus_bytes = (modulus_bits + 7) / 8;
+        pub const bits = modulus_bits;
+
         pub const Secret = [modulus_bytes]u8;
         pub const Signature = [modulus_bytes]u8;
         pub const Noise = [32]u8;
 
-        const Self = @This();
+        pub fn generateKeyPair() !KeyPair {
+            const private = try generateKey();
+            const public = try private.publicKey();
+            return .{
+                .private = private,
+                .public = public,
+            };
+        }
+
+        pub fn printSaltLenght() void {
+            std.log.info("salt_len : {d}", .{Hash.salt_length});
+        }
+
+        inline fn actualSize() !void {
+            const actual_hash_len = @as(usize, @intCast(ssl.EVP_MD_size(Hash.evp_fn())));
+            // std.debug.print("Hash size : {d}", .{actual_hash_len});
+            if (actual_hash_len != Hash.salt_length) {
+                std.log.err("Invalid hash size: expected {d}, got {d}", .{ Hash.salt_length, actual_hash_len });
+                return error.InvalidHashSize;
+            }
+        }
+
+        pub const KeyPair = struct {
+            private: PrivateKey,
+            public: PublicKey,
+
+            pub fn deinit(self: KeyPair) void {
+                self.private.deinit();
+                self.public.deinit();
+            }
+
+            pub fn initFromSecret(private_key: PrivateKey) !KeyPair {
+                return .{
+                    .private = private_key,
+                    .public = try private_key.publicKey(),
+                };
+            }
+        };
 
         pub const PublicKey = struct {
             key: *ssl.EVP_PKEY,
@@ -287,15 +338,46 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
                 ssl.BN_MONT_CTX_free(self.mont_ctx);
             }
 
-            pub fn serialize(self: PublicKey, allocator: std.mem.Allocator) ![]u8 {
+            pub fn toBytes(self: PublicKey, out: []u8) ![]u8 {
                 var buf: [*c]u8 = null;
                 const len = ssl.i2d_PublicKey(self.key, &buf);
-                if (len <= 0) return error.SerializationFailed;
+                if (len <= 0 or len >= out.len) return error.SerializationFailed;
+                try sslNTry(u8, buf);
 
-                const result = try allocator.alloc(u8, @as(usize, @intCast(len)));
-                @memcpy(result, buf[0..@as(usize, @intCast(len))]);
-                ssl.OPENSSL_free(buf);
-                return result;
+                @memcpy(out[0..@intCast(len)], @as([*]const u8, @ptrCast(buf.?))[0..@intCast(len)]);
+
+                return out[0..@as(usize, @intCast(len))];
+            }
+
+            pub fn fromBytes(raw: []u8) !PublicKey {
+                const max_len = 1000;
+                if (raw.len >= max_len) {
+                    return error.InputTooLarge;
+                }
+
+                var key: ?*EVP_PKEY = null;
+                var der_ptr: [*c]const u8 = raw.ptr;
+                try sslNTry(EVP_PKEY, ssl.d2i_PublicKey(ssl.EVP_PKEY_RSA, &key, &der_ptr, @as(c_long, @intCast(raw.len))));
+                const evp_key = key.?;
+                errdefer ssl.EVP_PKEY_free(evp_key);
+                if (rsaBits(evp_key) != modulus_bits) {
+                    return error.BitsIncorrect;
+                }
+
+                const e3: *BIGNUM = try sslAlloc(BIGNUM, ssl.BN_new());
+                defer ssl.BN_free(e3);
+                try sslTry(ssl.BN_set_word(e3, ssl.RSA_3));
+                const ef4: *BIGNUM = try sslAlloc(BIGNUM, ssl.BN_new());
+                defer ssl.BN_free(ef4);
+                try sslTry(ssl.BN_set_word(ef4, ssl.RSA_F4));
+                if (ssl.BN_cmp(e3, rsaParam(.e, evp_key)) != 0 and ssl.BN_cmp(ef4, rsaParam(.e, evp_key)) != 0) {
+                    return error.UnexpectedCheck;
+                }
+                const mont_ctx = try newMont_ctx(rsaParam(.n, evp_key));
+                return .{
+                    .key = evp_key,
+                    .mont_ctx = mont_ctx,
+                };
             }
         };
 
@@ -306,12 +388,72 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
                 ssl.EVP_PKEY_free(self.key);
             }
 
+            pub fn toBytes(self: PrivateKey, out: []u8) ![]u8 {
+                var buf: [*c]u8 = null;
+                defer ssl.OPENSSL_free(buf);
+
+                const len = ssl.i2d_PrivateKey(self.key, &buf);
+                if (len <= 0) {
+                    return error.SerializationFailed;
+                }
+                try actualSize();
+                try sslNTry(u8, buf);
+
+                @memcpy(out[0..@intCast(len)], @as([*]const u8, @ptrCast(buf.?))[0..@intCast(len)]);
+
+                return out[0..@as(usize, @intCast(len))];
+            }
+
+            pub fn fromBytes(raw: []const u8) !PrivateKey {
+                try actualSize();
+                var key: ?*EVP_PKEY = null;
+                var der_ptr: [*c]const u8 = raw.ptr;
+                try sslNTry(EVP_PKEY, ssl.d2i_PrivateKey(ssl.EVP_PKEY_RSA, &key, &der_ptr, @as(c_long, @intCast(raw.len))));
+                errdefer ssl.EVP_PKEY_free(key);
+                if (rsaBits(key.?) != modulus_bits) {
+                    return error.BitsIncorrect;
+                }
+                return .{
+                    .key = key.?,
+                };
+            }
+
+            pub fn fromPem_Der(data: []const u8) !PrivateKey {
+                try actualSize();
+                const bio = ssl.BIO_new_mem_buf(data.ptr, @intCast(data.len)) orelse return error.BioCreationFailed;
+                defer _ = ssl.BIO_free(bio);
+
+                const is_pem = blk: {
+                    const pem_header = "-----BEGIN";
+                    if (data.len < pem_header.len) break :blk false;
+                    break :blk std.mem.startsWith(u8, data, pem_header);
+                };
+
+                var pkey: ?*ssl.EVP_PKEY = null;
+
+                if (is_pem) {
+
+                    // parse as pem
+                    pkey = ssl.PEM_read_bio_PrivateKey(bio, null, null, null);
+                } else {
+                    //  parse as der
+                    pkey = ssl.d2i_PrivateKey_bio(bio, null);
+                }
+
+                if (pkey == null) {
+                    printOpensslError();
+                    return error.KeyParseFailed;
+                }
+
+                return PrivateKey{ .key = pkey.? };
+            }
+
             pub fn fromKey(key: *EVP_PKEY) PrivateKey {
                 return .{ .key = key };
             }
 
-            fn printKeyInfo(pkey: *ssl.EVP_PKEY) void {
-                const rsa_key = rsaRef(pkey);
+            pub fn printKeyInfo(pkey: PrivateKey) void {
+                const rsa_key = rsaRef(pkey.key);
                 const n = ssl.RSA_get0_n(rsa_key);
                 const e = ssl.RSA_get0_e(rsa_key);
 
@@ -401,6 +543,16 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
 
         fn signPKCS1v15(pkey: *ssl.EVP_PKEY, msg: []const u8, sig: []u8) !usize {
             const md = Hash.evp_fn().?;
+            try actualSize();
+            //
+            // const rsa_for = ssl.EVP_PKEY_get1_RSA(pkey);
+            // defer ssl.RSA_free(rsa_for);
+            // const hash_size = Hash.salt_length * 8;
+            // const rsa_bits = ssl.RSA_bits(rsa_for); //256or384
+            //
+            // if (rsa_bits < (2 * hash_size + 1)) {
+            //     return error.KeyTooSmallForHash;
+            // }
 
             const md_ctx = ssl.EVP_MD_CTX_new() orelse return error.ContextCreationFailed;
             defer ssl.EVP_MD_CTX_free(md_ctx);
@@ -410,9 +562,15 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
 
                 return error.SignInitFailed;
             }
+            try actualSize();
 
             var sig_len: usize = sig.len;
             if (ssl.EVP_DigestSign(md_ctx, sig.ptr, &sig_len, msg.ptr, msg.len) != 1) {
+                if (sig_len < modulus_bytes) {
+                    return error.SignSizeFailed;
+                } else {
+                    return error.SignFailed;
+                }
                 printOpensslError();
 
                 return error.SignFailed;
@@ -423,7 +581,16 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
 
         fn signPSS(pkey: *ssl.EVP_PKEY, msg: []const u8, sig: []u8) !usize {
             const md = Hash.evp_fn().?;
-            const salt_len = Hash.salt_length;
+            try actualSize();
+
+            // const rsa_for = ssl.EVP_PKEY_get1_RSA(pkey);
+            // defer ssl.RSA_free(rsa_for);
+            // const hash_size = Hash.salt_length * 8;
+            // const rsa_bits = ssl.RSA_bits(rsa_for); //256or384
+            //
+            // if (rsa_bits < (2 * hash_size + 1)) {
+            //     return error.KeyTooSmallForHash;
+            // }
 
             const md_ctx = ssl.EVP_MD_CTX_new() orelse return error.ContextCreationFailed;
 
@@ -442,7 +609,7 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
                 return error.SetPaddingFailed;
             }
 
-            if (ssl.EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, @intCast(salt_len)) != 1) {
+            if (ssl.EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, ssl.RSA_PSS_SALTLEN_DIGEST) != 1) {
                 printOpensslError();
 
                 return error.SetSaltLenFailed;
@@ -469,6 +636,7 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
         fn verifyPKCS1v15(pkey: *ssl.EVP_PKEY, msg: []const u8, sig: []const u8) !void {
             const md_ctx = ssl.EVP_MD_CTX_new() orelse return error.ContextCreationFailed;
             const md = Hash.evp_fn().?;
+            try actualSize();
 
             defer ssl.EVP_MD_CTX_free(md_ctx);
 
@@ -485,7 +653,19 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
 
         fn verifyPSS(pkey: *ssl.EVP_PKEY, msg: []const u8, sig: []const u8) !void {
             const md = Hash.evp_fn().?;
-            // const salt_len = Hash.salt_length;
+
+            // const rsa = ssl.EVP_PKEY_get1_RSA(pkey);
+            // defer ssl.RSA_free(rsa);
+            //
+            // const rsa_bits = ssl.RSA_bits(rsa);
+            // const hash_size = Hash.salt_length * 8; // hash in bits
+            //
+            // // minimal hash
+            // const min_required_bits = hash_size * 2 + 2;
+            //
+            // if (rsa_bits < min_required_bits) {
+            //     return error.KeyTooSmallForSalt;
+            // }
 
             const md_ctx = ssl.EVP_MD_CTX_new() orelse return error.ContextCreationFailed;
             defer ssl.EVP_MD_CTX_free(md_ctx);
@@ -499,6 +679,7 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
                 printOpensslError();
                 return error.SetPaddingFailed;
             }
+            try actualSize();
 
             if (ssl.EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, ssl.RSA_PSS_SALTLEN_DIGEST) != 1) {
                 printOpensslError();
@@ -513,39 +694,19 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
             }
         }
         pub fn generateKey() !PrivateKey {
-            const rsa = ssl.RSA_new() orelse return error.MemoryAllocation;
+            const sk = try sslAlloc(RSA, ssl.RSA_new());
+            errdefer ssl.RSA_free(sk);
+            const e: *BIGNUM = try sslAlloc(BIGNUM, ssl.BN_new());
+            defer ssl.BN_free(e);
 
-            const exponent = ssl.BN_new() orelse {
-                ssl.RSA_free(rsa);
-
-                return error.MemoryAllocation;
-            };
-            defer ssl.BN_free(exponent);
-
-            if (ssl.BN_set_word(exponent, 65537) != 1) {
-                ssl.RSA_free(rsa);
-
-                return error.MathOperationFailed;
-            }
-
-            if (ssl.RSA_generate_key_ex(rsa, modulus_bits, exponent, null) != 1) {
-                ssl.RSA_free(rsa);
-                return error.KeyGenerationFailed;
-            }
-
-            const pkey = ssl.EVP_PKEY_new() orelse {
-                ssl.RSA_free(rsa);
-                return error.MemoryAllocation;
-            };
-
-            if (ssl.EVP_PKEY_assign(pkey, ssl.EVP_PKEY_RSA, rsa) != 1) {
-                ssl.RSA_free(rsa);
-                ssl.EVP_PKEY_free(pkey);
-
-                return error.KeyAssignmentFailed;
-            }
-
-            return PrivateKey{ .key = pkey };
+            try sslTry(ssl.BN_set_word(e, ssl.RSA_F4));
+            try sslTry(ssl.RSA_generate_key_ex(sk, modulus_bits, e, null));
+            const evp_pkey: *EVP_PKEY = try sslAlloc(EVP_PKEY, ssl.EVP_PKEY_new());
+            defer ssl.EVP_PKEY_free(evp_pkey);
+            _ = ssl.EVP_PKEY_up_ref(evp_pkey);
+            _ = ssl.EVP_PKEY_assign(evp_pkey, ssl.EVP_PKEY_RSA, sk);
+            const sk_ = PrivateKey{ .key = evp_pkey };
+            return sk_;
         }
     };
 }
@@ -794,15 +955,14 @@ test "RSA-PSS OpenSSL compatibility without prehash" {
 test "RSA key serialization integrity" {
     const rsa = RSAAlgorithm(2048, .RSA_PSS, .sha256);
 
-    const allocator = std.testing.allocator;
-
     const priv_key = try rsa.generateKey();
     defer priv_key.deinit();
     const pub_key = try priv_key.publicKey();
     defer pub_key.deinit();
 
-    const serialized = try pub_key.serialize(allocator);
-    defer allocator.free(serialized);
+    var buf: [1000]u8 = undefined;
+
+    const serialized = try pub_key.toBytes(&buf);
 
     try std.testing.expect(serialized.len >= 270 and serialized.len <= 350);
     try std.testing.expect(serialized[0] == 0x30); // ASN.1 SEQUENCE

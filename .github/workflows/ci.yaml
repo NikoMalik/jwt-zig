@@ -72,15 +72,17 @@ jobs:
       - name: Install OpenSSL via Chocolatey
         shell: pwsh
         run: |
-          choco install openssl -y --force --version=3.1.5
+          choco install openssl.light -y
           refreshenv
-          echo "C:\Program Files\OpenSSL-Win64\bin" >> $env:GITHUB_PATH
-          $env:OPENSSL_DIR = "C:\Program Files\OpenSSL-Win64"
-          echo "OPENSSL_DIR=$env:OPENSSL_DIR" >> $env:GITHUB_ENV
+          # echo "C:\Program Files\OpenSSL-Win64\bin" >> $env:GITHUB_PATH
+          # $env:OPENSSL_DIR = "C:\Program Files\OpenSSL-Win64"
+          # echo "OPENSSL_DIR=$env:OPENSSL_DIR" >> $env:GITHUB_ENV
       - name: Verify OpenSSL installation
         run: |
-          openssl version
-          dir "C:\Program Files\OpenSSL-Win64\bin"
+          openssl version 
+          Get-Command openssl | Select-Object -ExpandProperty Definition
+          dir "C:\Program Files\OpenSSL\bin"
+
       - name: Setup Zig
         run: .\zig\download.bat latest
         shell: cmd
