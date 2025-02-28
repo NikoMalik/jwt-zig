@@ -76,18 +76,16 @@ jobs:
           refreshenv
       
        
-          $opensslPath = "C:\Program Files\OpenSSL\bin 
-          $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";$opensslPath"
-    
+          $opensslPath = "C:\Program Files\OpenSSL\bin" 
           echo "$opensslPath" >> $env:GITHUB_PATH
+    
+          
         
-          Get-Command openssl -ErrorAction Stop | Select-Object -ExpandProperty Source
+          Get-Item "$opensslPath\openssl.exe"
       - name: Verify OpenSSL installation
         run: |
           openssl version 
-          Get-ChildItem -Path "$env:ProgramFiles\OpenSSL\bin\openssl.exe" 
-          Write-Output "Current PATH: $env:PATH"
-
+          Get-Command openssl | Select-Object -ExpandProperty Source 
       - name: Setup Zig
         run: .\zig\download.bat latest
         shell: cmd
@@ -105,7 +103,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew update
-          brew install openssl@3.0
+          brew install openssl@3
       - name: Setup Zig
         run: |
           chmod +x ./zig/download.sh
