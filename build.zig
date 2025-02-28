@@ -22,19 +22,12 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    lib_mod.addImport("cricket", cricket.module("cricket"));
-    lib_mod.linkSystemLibrary("ssl", .{});
-    lib_mod.linkSystemLibrary("crypto", .{});
 
     const lib = b.addStaticLibrary(.{
         .name = "jwt",
         .root_module = lib_mod,
         .link_libc = true,
     });
-
-    lib.linkLibC();
-    lib.linkSystemLibrary("ssl");
-    lib.linkSystemLibrary("crypto");
 
     b.installArtifact(lib);
 
@@ -45,18 +38,12 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
 
-    unit_tests_1.root_module.addImport("cricket", cricket.module("cricket"));
-    unit_tests_1.linkSystemLibrary("ssl");
-    unit_tests_1.linkSystemLibrary("crypto");
-    unit_tests_1.linkLibC();
-
     const unit_tests_2 = b.addTest(.{
         .root_source_file = b.path("test_payload.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
-    unit_tests_2.linkLibC();
 
     const unit_tests_3 = b.addTest(.{
         .root_source_file = b.path("test_parse.zig"),
@@ -64,9 +51,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
-    unit_tests_3.linkLibC();
-    unit_tests_3.linkSystemLibrary("ssl");
-    unit_tests_3.linkSystemLibrary("crypto");
+    unit_tests_1.root_module.addImport("cricket", cricket.module("cricket"));
+    lib_mod.addImport("cricket", cricket.module("cricket"));
 
     const rsa_test = b.addTest(.{
         .root_source_file = b.path("rsa.zig"),
@@ -74,50 +60,12 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
-    rsa_test.linkLibC();
-    rsa_test.linkSystemLibrary("ssl");
-    rsa_test.linkSystemLibrary("crypto");
-
     const jwt_test = b.addTest(.{
         .root_source_file = b.path("jwt.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
-    jwt_test.linkSystemLibrary("ssl");
-    jwt_test.linkLibC();
-    jwt_test.linkSystemLibrary("crypto");
-    //
-    // if (crypto_lib == .openssl) {
-    //     if (builtin.target.os.tag == .macos) {
-    //         lib_mod.addLibraryPath(.{ .cwd_relative = "/opt/homebrew/opt/openssl@3/lib" });
-    //
-    //         rsa_test.addSystemIncludePath(.{ .cwd_relative = "/opt/homebrew/opt/openssl@3/include" });
-    //         rsa_test.addLibraryPath(.{ .cwd_relative = "/opt/homebrew/opt/openssl@3/lib" });
-    //     } else if (builtin.target.os.tag == .linux) {
-    //
-    //         //lib
-    //
-    //         lib_mod.addLibraryPath(.{ .cwd_relative = "/usr/bin/" });
-    //         lib_mod.addLibraryPath(.{ .cwd_relative = "/usr/lib/x86_64-linux-gnu" });
-    //
-    //         //rsa
-    //         rsa_test.addLibraryPath(.{ .cwd_relative = "/usr/bin/" });
-    //         rsa_test.addLibraryPath(.{ .cwd_relative = "/usr/lib/x86_64-linux-gnu" });
-    //     } else if (builtin.target.os.tag == .windows) {
-    //         lib_mod.addSystemIncludePath(.{ .cwd_relative = "C:/Program Files/OpenSSL-Win64/include" });
-    //
-    //         lib_mod.addLibraryPath(.{ .cwd_relative = "C:/Program Files/OpenSSL-Win64/lib" });
-    //
-    //         rsa_test.addSystemIncludePath(.{ .cwd_relative = "C:/Program Files/OpenSSL-Win64/include" });
-    //         rsa_test.addLibraryPath(.{ .cwd_relative = "C:/Program Files/OpenSSL-Win64/lib" });
-    //         rsa_test.addLibraryPath(.{ .cwd_relative = "C:/Program Files/Git/usr/bin/" });
-    //     }
-    // } else {
-    //     lib_mod.addSystemIncludePath(.{ .cwd_relative = "/Users/j/src/boringssl/install/include" });
-    //     lib_mod.addLibraryPath(.{ .cwd_relative = "/Users/j/src/boringssl/install/lib" });
-    // }
-    //
     if (builtin.target.os.tag == .windows) {
         lib_mod.linkSystemLibrary("libssl-3-x64", .{});
         lib_mod.linkSystemLibrary("libcrypto-3-x64", .{});
@@ -138,6 +86,27 @@ pub fn build(b: *std.Build) void {
         unit_tests_3.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
         rsa_test.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
         jwt_test.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
+    } else {
+        lib_mod.linkSystemLibrary("ssl", .{});
+        lib_mod.linkSystemLibrary("crypto", .{});
+
+        lib.linkLibC();
+        lib.linkSystemLibrary("ssl");
+        lib.linkSystemLibrary("crypto");
+
+        jwt_test.linkSystemLibrary("ssl");
+        jwt_test.linkLibC();
+        jwt_test.linkSystemLibrary("crypto");
+        rsa_test.linkLibC();
+        rsa_test.linkSystemLibrary("ssl");
+        rsa_test.linkSystemLibrary("crypto");
+        unit_tests_3.linkLibC();
+        unit_tests_3.linkSystemLibrary("ssl");
+        unit_tests_3.linkSystemLibrary("crypto");
+        unit_tests_2.linkLibC();
+        unit_tests_1.linkSystemLibrary("ssl");
+        unit_tests_1.linkSystemLibrary("crypto");
+        unit_tests_1.linkLibC();
     }
 
     // tests running
