@@ -77,9 +77,9 @@ pub fn build(b: *std.Build) void {
         lib.linkSystemLibrary("crypt32");
         lib.linkSystemLibrary("ws2_32");
         lib.linkSystemLibrary("advapi32");
-        lib_mod.linkSystemLibrary("crypt32");
-        lib_mod.linkSystemLibrary("ws2_32");
-        lib_mod.linkSystemLibrary("advapi32");
+        lib_mod.linkSystemLibrary("crypt32", .{});
+        lib_mod.linkSystemLibrary("ws2_32", .{});
+        lib_mod.linkSystemLibrary("advapi32", .{});
         lib.linkLibC();
 
         unit_tests_1.linkSystemLibrary("libssl-3-x64");
