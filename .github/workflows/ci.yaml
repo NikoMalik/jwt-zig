@@ -105,6 +105,7 @@ jobs:
           brew update
           brew install openssl
           openssl version
+          brew reinstall openssl 
       - name: Setup Zig
         run: |
           chmod +x ./zig/download.sh

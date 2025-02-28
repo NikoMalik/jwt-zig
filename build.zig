@@ -2,8 +2,6 @@ const std = @import("std");
 const CrossTarget = std.Target.Query;
 const builtin = @import("builtin");
 const fs = std.fs;
-const process = std.process;
-const Child = process.Child;
 
 const CryptoLib = enum { openssl, boringssl };
 
@@ -119,6 +117,16 @@ pub fn build(b: *std.Build) void {
     //     lib_mod.addSystemIncludePath(.{ .cwd_relative = "/Users/j/src/boringssl/install/include" });
     //     lib_mod.addLibraryPath(.{ .cwd_relative = "/Users/j/src/boringssl/install/lib" });
     // }
+    //
+    if (builtin.target.os.tag == .windows) {
+        lib_mod.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
+        lib.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
+        unit_tests_1.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
+        unit_tests_2.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
+        unit_tests_3.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
+        rsa_test.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
+        jwt_test.addLibraryPath(.{ .cwd_relative = "C:\\Program Files\\OpenSSL\\bin" });
+    }
 
     // tests running
     // ============
