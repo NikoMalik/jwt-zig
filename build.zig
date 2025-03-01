@@ -77,7 +77,13 @@ pub fn build(b: *std.Build) void {
         const win_libs = [_][]const u8{ "libssl-3-x64", "libcrypto-3-x64", "crypt32", "ws2_32", "advapi32", "user32" };
 
         inline for (win_libs) |lib_name| {
-            lib_mod.linkSystemLibrary(lib_name);
+            lib_mod.linkSystemLibrary(lib_name, .{});
+            jwt_test.linkSystemLibrary(lib_name);
+            rsa_test.linkSystemLibrary(lib_name);
+            unit_tests_1.linkSystemLibrary(lib_name);
+            unit_tests_2.linkSystemLibrary(lib_name);
+            lib.linkSystemLibrary(lib_name);
+            unit_tests_3.linkSystemLibrary(lib_name);
         }
     } else {
         lib_mod.linkSystemLibrary("ssl", .{});
