@@ -2,6 +2,8 @@
 
 ![Github Repo Issues](https://img.shields.io/github/issues/NikoMalik/jwt-zig?style=flat) ![GitHub Repo stars](https://img.shields.io/github/stars/NikoMalik/jwt-zig?style=social)
 
+*WINDOWS NOT SUPPORTED*
+
 A lightweight and performant JSON Web Token (JWT) library written in Zig. This library provides a simple, type-safe API for creating, signing, verifying, and parsing JWTs. It's designed to leverage Zig’s compile‐time safety and efficient memory management.
 
 ---

@@ -112,9 +112,9 @@ jobs:
           brew reinstall openssl 
       - name: Setup Zig
         run: |
-          chmod +x ./zig/tar.sh
+          chmod +x ./zig/download.sh
 
-          ./zig/tar.sh
+          ./zig/download.sh
       - name: Build and test
         run: ./zig/zig build test
 
