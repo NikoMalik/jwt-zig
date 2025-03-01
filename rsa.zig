@@ -3,6 +3,7 @@ const assert = std.debug.assert;
 const crypto = std.crypto;
 const fmt = std.fmt;
 const testing = std.testing;
+const pl = @import("payload.zig");
 
 const cwd = std.fs.cwd();
 
@@ -70,7 +71,14 @@ fn sslAlloc(comptime T: type, ret: ?*T) !*T {
 
 // Convert BIGNUM to padded binary format
 //=======================================
-fn bn2binPadded(out: [*c]u8, out_len: usize, in: *const BIGNUM) c_int {
+fn bn2binPadded_deprecated(out: [*c]u8, out_len: usize, in: *const BIGNUM) c_int {
+    if (ssl.BN_bn2binpad(in, out, @as(c_int, @intCast(out_len))) == out_len) {
+        return 1;
+    }
+    return 0;
+}
+
+fn bn2binPadded(in: *const BIGNUM, out: [*c]u8, out_len: usize) c_int {
     if (ssl.BN_bn2binpad(in, out, @as(c_int, @intCast(out_len))) == out_len) {
         return 1;
     }
@@ -224,6 +232,33 @@ fn deleteFile(path: []const u8) !void {
     try cwd.deleteFile(path);
 }
 
+fn bnConstantTimeEqual(a: *const BIGNUM, b: *const BIGNUM) bool {
+    const max_size = 512;
+    var buf_a: [max_size]u8 = undefined;
+    var buf_b: [max_size]u8 = undefined;
+
+    const bits_a = ssl.BN_num_bits(a);
+    const bits_b = ssl.BN_num_bits(b);
+    if (constantTimeU32Eq(@as(u32, @intCast(bits_a)), @as(u32, @intCast(bits_b))) != 1) {
+        return false;
+    }
+
+    if (ssl.BN_bn2binpad(a, &buf_a, max_size) != max_size) return false;
+    if (ssl.BN_bn2binpad(b, &buf_b, max_size) != max_size) return false;
+
+    return pl.constTimeEqual(&buf_a, &buf_b);
+}
+
+fn constantTimeU32Eq(a: u32, b: u32) u32 {
+    var c = ~(a ^ b);
+    c &= c >> 16;
+    c &= c >> 8;
+    c &= c >> 4;
+    c &= c >> 2;
+    c &= c >> 1;
+    return @as(u32, @intFromBool((c & 1) != 0));
+}
+
 fn constructPublicKey(n: *BIGNUM, e: *BIGNUM) !RSAAlgorithm(2048, .RSA_PSS, .sha256).PublicKey {
     const rsa_pub = ssl.RSA_new() orelse return error.MemoryAllocation;
     if (ssl.RSA_set0_key(rsa_pub, n, e, null) != 1) {
@@ -370,8 +405,8 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
                 const ef4: *BIGNUM = try sslAlloc(BIGNUM, ssl.BN_new());
                 defer ssl.BN_free(ef4);
                 try sslTry(ssl.BN_set_word(ef4, ssl.RSA_F4));
-                if (ssl.BN_cmp(e3, rsaParam(.e, evp_key)) != 0 and ssl.BN_cmp(ef4, rsaParam(.e, evp_key)) != 0) {
-                    return error.UnexpectedCheck;
+                if (!bnConstantTimeEqual(e3, rsaParam(.e, evp_key)) and !bnConstantTimeEqual(ef4, rsaParam(.e, evp_key))) {
+                    return error.NotEqualBIGNUM;
                 }
                 const mont_ctx = try newMont_ctx(rsaParam(.n, evp_key));
                 return .{

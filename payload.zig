@@ -509,18 +509,10 @@ pub fn unmarshalJSON_PAYLOAD(allocator: Allocator, js: []const u8) !Payload {
 }
 
 pub fn constTimeEqual(a: []const u8, b: []const u8) bool {
-    if (a.len != b.len) {
-        return false;
-    }
-
     return constantTimeCompare(a, b) == 1;
 }
 
 inline fn constantTimeCompare(a: []const u8, b: []const u8) usize {
-    if (a.len != b.len) {
-        return 0;
-    }
-
     var v: u8 = 0;
     var i: usize = 0;
 
