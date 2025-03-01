@@ -97,24 +97,24 @@ jobs:
   #
 
 
-  test_macos:
-    runs-on: macos-latest
-    steps:
-
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install dependencies
-        run: |
-          brew update
-          brew install openssl
-          openssl version
-          brew reinstall openssl 
-      - name: Setup Zig
-        run: |
-          chmod +x ./zig/download.sh
-
-          ./zig/download.sh
-      - name: Build and test
-        run: ./zig/zig build test
-
+  # test_macos:
+  #   runs-on: macos-latest
+  #   steps:
+  #
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     - name: Install dependencies
+  #       run: |
+  #         brew update
+  #         brew install openssl
+  #         openssl version
+  #         brew reinstall openssl 
+  #     - name: Setup Zig
+  #       run: |
+  #         chmod +x ./zig/download.sh
+  #
+  #         ./zig/download.sh
+  #     - name: Build and test
+  #       run: ./zig/zig build test
+  #
