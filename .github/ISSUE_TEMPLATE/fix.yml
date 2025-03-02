@@ -4,7 +4,7 @@ description: Suggest a fix or improvement for an existing issue.
 title: '[fix]: <brief description>'
 labels: [fix]
 
-assignees: ''
+
 
 body:
   - type: markdown
