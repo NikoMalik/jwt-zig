@@ -43,13 +43,13 @@ Zig >= 0.14.0-dev.2851+b074fb7dd
 - ✅        | ES256         | ECDSA using P-256 curve and SHA-256 hash algorithm |
 - ✅        | EdDsa         | Edwards curve digital signature algorithm and SHA-512 hash algorithm |
 - ✅        | ES384         | ECDSA using P-384 curve and SHA-384 hash algorithm |
-- ❌        | PS256         | RSASSA-PSS using SHA-256 hash algorithm |
+- ✅        | PS256         | RSASSA-PSS using SHA-256 hash algorithm |
 - ❌        | ES512         | ECDSA using P-521 curve and SHA-512 hash algorithm |
-- ❌        | PS384         | RSASSA-PSS using SHA-384 hash algorithm |
-- ❌        | PS512         | RSASSA-PSS using SHA-512 hash algorithm |
-- ❌        | RS256         | RSASSA-PKCS1-v1_5 using SHA-256 hash algorithm |
-- ❌        | RS384         | RSASSA-PKCS1-v1_5 using SHA-384 hash algorithm |
-- ❌        | RS512         | RSASSA-PKCS1-v1_5 using SHA-512 hash algorithm |
+- ✅        | PS384         | RSASSA-PSS using SHA-384 hash algorithm |
+- ✅        | PS512         | RSASSA-PSS using SHA-512 hash algorithm |
+- ✅        | RS256         | RSASSA-PKCS1-v1_5 using SHA-256 hash algorithm |
+- ✅        | RS384         | RSASSA-PKCS1-v1_5 using SHA-384 hash algorithm |
+- ✅        | RS512         | RSASSA-PKCS1-v1_5 using SHA-512 hash algorithm |
 
 
 
