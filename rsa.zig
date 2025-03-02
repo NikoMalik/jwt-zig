@@ -406,7 +406,7 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
                 defer ssl.BN_free(ef4);
                 try sslTry(ssl.BN_set_word(ef4, ssl.RSA_F4));
                 if (!bnConstantTimeEqual(e3, rsaParam(.e, evp_key)) and !bnConstantTimeEqual(ef4, rsaParam(.e, evp_key))) {
-                    return error.NotEqualBIGNUM;
+                    return error.UnexpectedCheck;
                 }
                 const mont_ctx = try newMont_ctx(rsaParam(.n, evp_key));
                 return .{
@@ -579,27 +579,21 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
         fn signPKCS1v15(pkey: *ssl.EVP_PKEY, msg: []const u8, sig: []u8) !usize {
             const md = Hash.evp_fn().?;
             try actualSize();
-            //
-            // const rsa_for = ssl.EVP_PKEY_get1_RSA(pkey);
-            // defer ssl.RSA_free(rsa_for);
-            // const hash_size = Hash.salt_length * 8;
-            // const rsa_bits = ssl.RSA_bits(rsa_for); //256or384
-            //
-            // if (rsa_bits < (2 * hash_size + 1)) {
-            //     return error.KeyTooSmallForHash;
-            // }
 
             const md_ctx = ssl.EVP_MD_CTX_new() orelse return error.ContextCreationFailed;
             defer ssl.EVP_MD_CTX_free(md_ctx);
-
+            var sig_len: usize = sig.len;
             if (ssl.EVP_DigestSignInit(md_ctx, null, md, null, pkey) != 1) {
+                if (sig_len < modulus_bits) {
+                    return error.SignSizeFailed;
+                }
                 printOpensslError();
-
                 return error.SignInitFailed;
             }
             try actualSize();
 
-            var sig_len: usize = sig.len;
+            //PKCS1 v1.5 requires the message to be hashed, then padded (e.g. 0x00 0x01 0xFF...0xFF 0x00 || hash)
+            //and encrypted with a private key. OpenSSL automatically handles this inside EVP_DigestSign.
             if (ssl.EVP_DigestSign(md_ctx, sig.ptr, &sig_len, msg.ptr, msg.len) != 1) {
                 if (sig_len < modulus_bytes) {
                     return error.SignSizeFailed;
@@ -618,20 +612,15 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
             const md = Hash.evp_fn().?;
             try actualSize();
 
-            // const rsa_for = ssl.EVP_PKEY_get1_RSA(pkey);
-            // defer ssl.RSA_free(rsa_for);
-            // const hash_size = Hash.salt_length * 8;
-            // const rsa_bits = ssl.RSA_bits(rsa_for); //256or384
-            //
-            // if (rsa_bits < (2 * hash_size + 1)) {
-            //     return error.KeyTooSmallForHash;
-            // }
-
             const md_ctx = ssl.EVP_MD_CTX_new() orelse return error.ContextCreationFailed;
 
             defer ssl.EVP_MD_CTX_free(md_ctx);
 
+            var sig_len: usize = sig.len;
             if (ssl.EVP_DigestSignInit(md_ctx, null, md, null, pkey) != 1) {
+                if (sig_len < modulus_bits) {
+                    return error.SignSizeFailed;
+                }
                 printOpensslError();
 
                 return error.SignInitFailed;
@@ -650,7 +639,8 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
                 return error.SetSaltLenFailed;
             }
 
-            var sig_len: usize = sig.len;
+            //RSA-PSS adds a random salt to the message hash, applies a mask (MGF1), and encrypts the result
+            //OpenSSL implements this according to the PKCS#1 v2.2 standard.
             if (ssl.EVP_DigestSign(md_ctx, sig.ptr, &sig_len, msg.ptr, msg.len) != 1)
                 if (sig_len < modulus_bytes) {
                     return error.SignSizeFailed;
@@ -688,19 +678,6 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
 
         fn verifyPSS(pkey: *ssl.EVP_PKEY, msg: []const u8, sig: []const u8) !void {
             const md = Hash.evp_fn().?;
-
-            // const rsa = ssl.EVP_PKEY_get1_RSA(pkey);
-            // defer ssl.RSA_free(rsa);
-            //
-            // const rsa_bits = ssl.RSA_bits(rsa);
-            // const hash_size = Hash.salt_length * 8; // hash in bits
-            //
-            // // minimal hash
-            // const min_required_bits = hash_size * 2 + 2;
-            //
-            // if (rsa_bits < min_required_bits) {
-            //     return error.KeyTooSmallForSalt;
-            // }
 
             const md_ctx = ssl.EVP_MD_CTX_new() orelse return error.ContextCreationFailed;
             defer ssl.EVP_MD_CTX_free(md_ctx);

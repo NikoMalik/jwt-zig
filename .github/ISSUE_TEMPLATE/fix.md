@@ -1,0 +1,40 @@
+---
+name: 🔧 Fix 
+description: Suggest a fix or improvement for an existing issue.
+title: '[fix]: <brief description>'
+labels: [fix, needs-triage]
+
+assignees: ''
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a fix!
+        Please provide the necessary details to help us understand and implement the improvement.
+
+  - type: textarea
+    attributes:
+      label: What problem does this fix address?
+    validations:
+
+      required: true
+
+  - type: textarea
+    attributes:
+      label: What is your proposed fix?
+    validations:
+      required: true
+
+
+  - type: textarea
+    attributes:
+      label: What alternatives have you considered?
+    validations:
+      required: false
+
+  - type: textarea
+
+    attributes:
+      label: Additional details (code snippets, references, etc.)
+

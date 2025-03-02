@@ -33,6 +33,7 @@ const Key_cipr = struct {
 
     var rs256: rs.RS256.KeyPair = undefined;
     var rs384: rs.RS384.KeyPair = undefined;
+    var rs512: rs.RS512.KeyPair = undefined;
 };
 
 //You can add only payload.CustomPayload or payload.Payload
@@ -162,6 +163,23 @@ pub fn Token(comptime Payload: type) type {
             return kp;
         }
 
+        pub fn generateKeyPairRS256(t: *Self) !rs.RS256.KeyPair {
+            _ = t;
+            const kp = try rs.RS256.generateKeyPair();
+            return kp;
+        }
+
+        pub fn generateKeyPairRS384(t: *Self) !rs.RS384.KeyPair {
+            _ = t;
+            const kp = try rs.RS384.generateKeyPair();
+            return kp;
+        }
+        pub fn generateKeyPairRS512(t: *Self) !rs.RS512.KeyPair {
+            _ = t;
+            const kp = try rs.RS512.generateKeyPair();
+            return kp;
+        }
+
         pub fn generateKeyPairHS512(t: *Self) ![HS512.key_length]u8 {
             _ = t;
             var hmac: [HS512.key_length]u8 = undefined;
@@ -215,7 +233,7 @@ pub fn Token(comptime Payload: type) type {
             defer js.deinit();
             try t.signingString(&js);
             const sst = js.items;
-            // js.clearRetainingCapacity();
+
             switch (t.header.alg) {
                 .EDDSA => {
                     const writer = js.writer();
@@ -431,6 +449,96 @@ pub fn Token(comptime Payload: type) type {
                     }
 
                     var sigBytes: rs.PS512.Signature = undefined;
+                    const sig_len = try ps.private.sign(sst, &sigBytes);
+                    const sig = sigBytes[0..sig_len];
+                    if (t.signature) |s| {
+                        t.allocator.free(s);
+                    }
+                    t.signature = try t.allocator.dupe(u8, sig);
+                    const encodedLen = base64url.Encoder.calcSize(sig.len);
+                    const sigDest = try t.allocator.alloc(u8, encodedLen);
+                    defer t.allocator.free(sigDest);
+                    const encodedSig = base64url.Encoder.encode(sigDest, sig);
+                    try writer.writeByte('.');
+                    try writer.writeAll(encodedSig);
+                    const tokenRaw = try js.toOwnedSlice();
+                    if (t.raw) |old_raw| {
+                        t.allocator.free(old_raw);
+                    }
+                    t.raw = try t.allocator.dupe(u8, tokenRaw);
+                    return tokenRaw;
+                },
+                .RS256 => {
+                    const writer = js.writer();
+                    var ps: rs.RS256.KeyPair = undefined;
+                    if (key) |k| {
+                        ps = try rs.RS256.KeyPair.initFromSecret(try rs.RS256.PrivateKey.fromBytes(k));
+                    } else {
+                        ps = try rs.RS256.generateKeyPair();
+                        Key_cipr.rs256 = ps;
+                    }
+
+                    var sigBytes: rs.RS256.Signature = undefined;
+                    const sig_len = try ps.private.sign(sst, &sigBytes);
+                    const sig = sigBytes[0..sig_len];
+                    if (t.signature) |s| {
+                        t.allocator.free(s);
+                    }
+                    t.signature = try t.allocator.dupe(u8, sig);
+                    const encodedLen = base64url.Encoder.calcSize(sig.len);
+                    const sigDest = try t.allocator.alloc(u8, encodedLen);
+                    defer t.allocator.free(sigDest);
+                    const encodedSig = base64url.Encoder.encode(sigDest, sig);
+                    try writer.writeByte('.');
+                    try writer.writeAll(encodedSig);
+                    const tokenRaw = try js.toOwnedSlice();
+                    if (t.raw) |old_raw| {
+                        t.allocator.free(old_raw);
+                    }
+                    t.raw = try t.allocator.dupe(u8, tokenRaw);
+                    return tokenRaw;
+                },
+                .RS384 => {
+                    const writer = js.writer();
+                    var ps: rs.RS384.KeyPair = undefined;
+                    if (key) |k| {
+                        ps = try rs.RS384.KeyPair.initFromSecret(try rs.RS384.PrivateKey.fromBytes(k));
+                    } else {
+                        ps = try rs.RS384.generateKeyPair();
+                        Key_cipr.rs384 = ps;
+                    }
+
+                    var sigBytes: rs.RS384.Signature = undefined;
+                    const sig_len = try ps.private.sign(sst, &sigBytes);
+                    const sig = sigBytes[0..sig_len];
+                    if (t.signature) |s| {
+                        t.allocator.free(s);
+                    }
+                    t.signature = try t.allocator.dupe(u8, sig);
+                    const encodedLen = base64url.Encoder.calcSize(sig.len);
+                    const sigDest = try t.allocator.alloc(u8, encodedLen);
+                    defer t.allocator.free(sigDest);
+                    const encodedSig = base64url.Encoder.encode(sigDest, sig);
+                    try writer.writeByte('.');
+                    try writer.writeAll(encodedSig);
+                    const tokenRaw = try js.toOwnedSlice();
+                    if (t.raw) |old_raw| {
+                        t.allocator.free(old_raw);
+                    }
+                    t.raw = try t.allocator.dupe(u8, tokenRaw);
+                    return tokenRaw;
+                },
+                .RS512 => {
+                    const writer = js.writer();
+                    var ps: rs.RS512.KeyPair = undefined;
+                    if (key) |k| {
+                        ps = try rs.RS512.KeyPair.initFromSecret(try rs.RS512.PrivateKey.fromBytes(k));
+                    } else {
+                        ps = try rs.RS512.generateKeyPair();
+                        Key_cipr.rs512 = ps;
+                    }
+
+                    var sigBytes: rs.RS512.Signature = undefined;
                     const sig_len = try ps.private.sign(sst, &sigBytes);
                     const sig = sigBytes[0..sig_len];
                     if (t.signature) |s| {
@@ -776,6 +884,93 @@ pub fn Token(comptime Payload: type) type {
                     t.raw = try t.allocator.dupe(u8, tokenRaw);
                     defer t.allocator.free(tokenRaw);
                 },
+                .RS256 => {
+                    const writer = js.writer();
+                    var ps: rs.RS256.KeyPair = undefined;
+                    if (key) |k| {
+                        ps = try rs.RS256.KeyPair.initFromSecret(try rs.RS256.PrivateKey.fromBytes(k));
+                    } else {
+                        ps = try rs.RS256.generateKeyPair();
+                        Key_cipr.rs256 = ps;
+                    }
+                    var sigBytes: rs.RS256.Signature = undefined;
+                    const sig_len = try ps.private.sign(sst, &sigBytes);
+                    const sig = sigBytes[0..sig_len];
+                    if (t.signature) |s| {
+                        t.allocator.free(s);
+                    }
+                    t.signature = try t.allocator.dupe(u8, sig);
+                    const encodedLen = base64url.Encoder.calcSize(sig.len);
+                    const sigDest = try t.allocator.alloc(u8, encodedLen);
+                    defer t.allocator.free(sigDest);
+                    const encodedSig = base64url.Encoder.encode(sigDest, sig);
+                    try writer.writeByte('.');
+                    try writer.writeAll(encodedSig);
+                    const tokenRaw = try js.toOwnedSlice();
+                    if (t.raw) |old_raw| {
+                        t.allocator.free(old_raw);
+                    }
+                    t.raw = try t.allocator.dupe(u8, tokenRaw);
+                    defer t.allocator.free(tokenRaw);
+                },
+                .RS384 => {
+                    const writer = js.writer();
+                    var ps: rs.RS384.KeyPair = undefined;
+                    if (key) |k| {
+                        ps = try rs.RS384.KeyPair.initFromSecret(try rs.RS384.PrivateKey.fromBytes(k));
+                    } else {
+                        ps = try rs.RS384.generateKeyPair();
+                        Key_cipr.rs384 = ps;
+                    }
+                    var sigBytes: rs.RS384.Signature = undefined;
+                    const sig_len = try ps.private.sign(sst, &sigBytes);
+                    const sig = sigBytes[0..sig_len];
+                    if (t.signature) |s| {
+                        t.allocator.free(s);
+                    }
+                    t.signature = try t.allocator.dupe(u8, sig);
+                    const encodedLen = base64url.Encoder.calcSize(sig.len);
+                    const sigDest = try t.allocator.alloc(u8, encodedLen);
+                    defer t.allocator.free(sigDest);
+                    const encodedSig = base64url.Encoder.encode(sigDest, sig);
+                    try writer.writeByte('.');
+                    try writer.writeAll(encodedSig);
+                    const tokenRaw = try js.toOwnedSlice();
+                    if (t.raw) |old_raw| {
+                        t.allocator.free(old_raw);
+                    }
+                    t.raw = try t.allocator.dupe(u8, tokenRaw);
+                    defer t.allocator.free(tokenRaw);
+                },
+                .RS512 => {
+                    const writer = js.writer();
+                    var ps: rs.RS512.KeyPair = undefined;
+                    if (key) |k| {
+                        ps = try rs.RS512.KeyPair.initFromSecret(try rs.RS512.PrivateKey.fromBytes(k));
+                    } else {
+                        ps = try rs.RS512.generateKeyPair();
+                        Key_cipr.rs512 = ps;
+                    }
+                    var sigBytes: rs.RS512.Signature = undefined;
+                    const sig_len = try ps.private.sign(sst, &sigBytes);
+                    const sig = sigBytes[0..sig_len];
+                    if (t.signature) |s| {
+                        t.allocator.free(s);
+                    }
+                    t.signature = try t.allocator.dupe(u8, sig);
+                    const encodedLen = base64url.Encoder.calcSize(sig.len);
+                    const sigDest = try t.allocator.alloc(u8, encodedLen);
+                    defer t.allocator.free(sigDest);
+                    const encodedSig = base64url.Encoder.encode(sigDest, sig);
+                    try writer.writeByte('.');
+                    try writer.writeAll(encodedSig);
+                    const tokenRaw = try js.toOwnedSlice();
+                    if (t.raw) |old_raw| {
+                        t.allocator.free(old_raw);
+                    }
+                    t.raw = try t.allocator.dupe(u8, tokenRaw);
+                    defer t.allocator.free(tokenRaw);
+                },
                 .ES256 => {
                     const writer = js.writer();
                     var es: ES256.KeyPair = undefined;
@@ -979,6 +1174,57 @@ pub fn Token(comptime Payload: type) type {
                     }
                     return sig;
                 },
+                .RS256 => {
+                    if (t.signature.?.len != rs.RS256.modulus_bytes) {
+                        std.log.err("triggered invalid len: {d}", .{t.signature.?.len});
+                        return error.InvalidSignatureLength;
+                    }
+
+                    const sst = t.beforeSignature();
+                    const signature: *[rs.RS256.modulus_bytes]u8 = t.signature.?[0..rs.RS256.modulus_bytes];
+                    var sig: bool = false;
+                    if (key) |k| {
+                        const pk = try rs.RS256.PublicKey.fromBytes(k);
+                        sig = verify_rsa(rs.RS256, pk, sst, signature);
+                    } else {
+                        sig = verify_rsa(rs.RS256, Key_cipr.rs256.public, sst, signature);
+                    }
+                    return sig;
+                },
+                .RS384 => {
+                    if (t.signature.?.len != rs.RS384.modulus_bytes) {
+                        std.log.err("triggered invalid len: {d}", .{t.signature.?.len});
+                        return error.InvalidSignatureLength;
+                    }
+
+                    const sst = t.beforeSignature();
+                    const signature: *[rs.RS384.modulus_bytes]u8 = t.signature.?[0..rs.RS384.modulus_bytes];
+                    var sig: bool = false;
+                    if (key) |k| {
+                        const pk = try rs.RS384.PublicKey.fromBytes(k);
+                        sig = verify_rsa(rs.RS384, pk, sst, signature);
+                    } else {
+                        sig = verify_rsa(rs.RS384, Key_cipr.rs384.public, sst, signature);
+                    }
+                    return sig;
+                },
+                .RS512 => {
+                    if (t.signature.?.len != rs.RS512.modulus_bytes) {
+                        std.log.err("triggered invalid len: {d}", .{t.signature.?.len});
+                        return error.InvalidSignatureLength;
+                    }
+
+                    const sst = t.beforeSignature();
+                    const signature: *[rs.RS512.modulus_bytes]u8 = t.signature.?[0..rs.RS512.modulus_bytes];
+                    var sig: bool = false;
+                    if (key) |k| {
+                        const pk = try rs.RS512.PublicKey.fromBytes(k);
+                        sig = verify_rsa(rs.RS512, pk, sst, signature);
+                    } else {
+                        sig = verify_rsa(rs.RS512, Key_cipr.rs512.public, sst, signature);
+                    }
+                    return sig;
+                },
                 .HS512 => {
                     if (t.signature.?.len != HS512.mac_length) {
                         std.debug.print("triggered {d}\n", .{t.signature.?.len});
@@ -1103,7 +1349,3 @@ pub fn keyFromFile(allocator: std.mem.Allocator, path: []const u8) !cricket.deco
 
     return try cricket.decode.fromPem(allocator, key_contents);
 }
-
-//BLOCKED TESTS
-//=================
-//
