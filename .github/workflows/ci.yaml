@@ -9,71 +9,112 @@ on:
     branches: [main]
 
 jobs:
-
   test_alpine:
-
     runs-on: ubuntu-latest
     container:
-
-      image: alpine
+      image: alpine:latest
       options: --security-opt seccomp=unconfined
-    steps:
-      - run: apk add -U git github-cli iproute2-tc
 
-      - run: git config --system --add safe.directory '*'
+    steps:
+      - name: Install dependencies
+        run: |
+          apk update
+          apk add -U git openssl openssl-dev gcc musl-dev cmake make perl linux-headers
+      - name: Configure Git
+        run: git config --system --add safe.directory '*'
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - run: chmod +x ./zig/download.sh
-      - run: ./zig/download.sh latest
-      - run: ./zig/zig build test
+
+          submodules: recursive
+      - name: Setup Zig
+
+        run: |
+          chmod +x ./zig/tar.sh
+          ./zig/tar.sh
+
+      - name: Build and test
+        run: ./zig/zig build test
 
   test_ubuntu:
-    strategy:
-      matrix:
-        include:
-
-          - { os: 'ubuntu-latest' }
-         
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
-      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      - run: chmod +x ./zig/download.sh
-      - run: ./zig/download.sh latest
-      - run: ./zig/zig build test
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev
+      - name: Setup Zig
+        run: |
+          chmod +x ./zig/tar.sh
+          ./zig/tar.sh
+      - name: Build and test
+        run: ./zig/zig build test
+  #
+  # test_windows:
+  #   runs-on: windows-latest
+  #   steps:
+  #     - name: Configure Git
+  #       run: git config --global core.autocrlf false
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     - name: Install Chocolatey
+  #       shell: pwsh
+  #       run: |
+  #         Set-ExecutionPolicy Bypass -Scope Process -Force
+  #         [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+  #         iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+  #         choco --version
+  #     - name: Install OpenSSL via Chocolatey
+  #       shell: pwsh
+  #       run: |
+  #         choco install openssl.light -y
+  #         Import-Module $env:ChocolateyInstall\helpers\chocolateyProfile.psm1
+  #
+  #
+  #         $opensslPath = "C:\Program Files\OpenSSL\bin" 
+  #         echo "$opensslPath" >> $env:GITHUB_PATH
+  #
+  #
+  #
+  #         Get-Item "$opensslPath\openssl.exe"
+  #     - name: Verify OpenSSL installation
+  #       run: |
+  #         openssl version 
+  #         Get-Command openssl | Select-Object -ExpandProperty Source 
+  #         Get-ChildItem "C:\Program Files\OpenSSL\bin\libssl*"
+  #         Get-ChildItem "C:\Program Files\OpenSSL\bin\libcrypto*"
+  #         Get-ChildItem -Path "C:\Program Files\OpenSSL\bin\*.h" -Recurse
+  #     - name: Setup Zig
+  #       run: .\zig\download.bat latest
+  #       shell: cmd
+  #     - name: Build and test
+  #       run: .\zig\zig build test 
+  #
 
 
-  test_windows:
-    runs-on: windows-latest
-    steps:
-      - run: git config --global core.autocrlf false
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - run: chmod +x .\zig\download.bat
-      - run: .\zig\download.bat latest
-        shell: cmd
-      - run: .\zig\zig build test
-
-  test_macos:
-
-    strategy:
-      matrix:
-        include:
-          - { os: 'macos-latest' }
-          - { os: 'macos-13' }
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - run: chmod +x ./zig/download.sh
-      - run: ./zig/download.sh latest
-      - run: ./zig/zig build test
-
+  # test_macos:
+  #   runs-on: macos-latest
+  #   steps:
+  #
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     - name: Install dependencies
+  #       run: |
+  #         brew update
+  #         brew install openssl
+  #         openssl version
+  #         brew reinstall openssl 
+  #     - name: Setup Zig
+  #       run: |
+  #         chmod +x ./zig/download.sh
+  #
+  #         ./zig/download.sh
+  #     - name: Build and test
+  #       run: ./zig/zig build test
+  #

@@ -6,3 +6,4 @@ pub const date = @import("time.zig");
 const cricket = @import("cricket");
 pub const typ = @import("algorithm.zig");
 pub const eddsa = @import("eddsa.zig");
+pub const rsa = @import("rsa.zig");

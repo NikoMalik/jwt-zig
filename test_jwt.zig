@@ -6,6 +6,7 @@ const date = @import("time.zig");
 const jwt = @import("jwt.zig");
 const PublicKey = std.crypto.sign.Ed25519.PublicKey;
 const assert = std.debug.assert;
+const rr = @import("rsa.zig");
 
 test "JWT EDDSA test " {
     std.debug.print("eddsa\n", .{});
@@ -459,6 +460,7 @@ test "jwt none test" {
 }
 
 test "jwt custom es384 test" {
+    std.log.debug("CUSTOM ES384 TESTING", .{});
     var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
@@ -494,4 +496,346 @@ test "jwt custom es384 test" {
     std.debug.print("{any}\n", .{verify});
     std.debug.print("{s}\n", .{jwtToken.raw.?});
     assert(verify);
+}
+
+test "jwt generate ps256" {
+    std.log.debug("VALID GENERATE PS256 MUST BE OK", .{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    const leaks = gpa.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+
+    const header = head.Header.init(allocator, typ.Type.JWT, typ.Algorithm.PS256, .{ .cty = "jj" });
+
+    const payload = p.CustomPayload(exm).init(allocator, .{
+        .exp = 2,
+    });
+
+    var jwtToken = jwt.Token(p.CustomPayload(exm)).init(allocator, header, payload);
+    defer jwtToken.deinit();
+
+    const ps256KeyPair = try jwtToken.generateKeyPairPS256();
+    defer ps256KeyPair.deinit();
+    ps256KeyPair.private.printKeyInfo();
+    var buf: [2500]u8 = undefined;
+    const signBytes = try ps256KeyPair.private.toBytes(&buf);
+    // defer allocator.free(signBytes);
+    // //
+    const result = try jwtToken.signToken(signBytes[0..]);
+    defer allocator.free(result);
+    std.debug.print("{s}\n", .{result});
+    const resPayload = try jwtToken.payload.marshalJSON_PAYLOAD();
+    defer allocator.free(resPayload);
+    std.debug.print("payload : {s}\n", .{resPayload});
+    const public = try ps256KeyPair.private.publicKey();
+
+    const publicBytes = try public.toBytes(&buf);
+
+    const verify = try jwtToken.verifyToken(publicBytes[0..]);
+    std.debug.print("{any}\n", .{verify});
+    assert(verify);
+}
+
+test "jwt generate invalid ps256" {
+    std.log.debug("INVALID PS256 MUST BE FALSE", .{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    const leaks = gpa.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+
+    const header = head.Header.init(allocator, typ.Type.JWT, typ.Algorithm.PS256, .{ .cty = "jj" });
+
+    const payload = p.CustomPayload(exm).init(allocator, .{
+        .exp = 2,
+    });
+
+    var jwtToken = jwt.Token(p.CustomPayload(exm)).init(allocator, header, payload);
+    defer jwtToken.deinit();
+
+    const ps256KeyPair = try jwtToken.generateKeyPairPS256();
+    defer ps256KeyPair.deinit();
+    ps256KeyPair.private.printKeyInfo();
+    var buf: [2500]u8 = undefined;
+    const signBytes = try ps256KeyPair.private.toBytes(&buf);
+    // defer allocator.free(signBytes);
+    // //
+    const result = try jwtToken.signToken(signBytes[0..]);
+    defer allocator.free(result);
+    std.debug.print("{s}\n", .{result});
+    const resPayload = try jwtToken.payload.marshalJSON_PAYLOAD();
+    defer allocator.free(resPayload);
+    std.debug.print("payload : {s}\n", .{resPayload});
+
+    //and now create FAKE PUBLIC KEY
+    //==============================
+    var buf_fake: [2500]u8 = undefined;
+    const fake_key_pair = try jwtToken.generateKeyPairPS256();
+    defer fake_key_pair.deinit();
+    const public_fake = try fake_key_pair.private.publicKey();
+    const fake_bytes = try public_fake.toBytes(&buf_fake);
+
+    const verify = try jwtToken.verifyToken(fake_bytes[0..]);
+    std.debug.print("{any}\n", .{verify});
+    assert(!verify);
+}
+
+test "jwt generate ps384" {
+    std.debug.print("JWT GENERATE PS384 INVALID KEYS HASH\n", .{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    const leaks = gpa.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+
+    const header = head.Header.init(allocator, typ.Type.JWT, typ.Algorithm.PS384, .{ .cty = "jj" });
+
+    const payload = p.CustomPayload(exm).init(allocator, .{
+        .exp = 34,
+    });
+
+    var jwtToken = jwt.Token(p.CustomPayload(exm)).init(allocator, header, payload);
+    defer jwtToken.deinit();
+
+    const ps256KeyPair = try jwtToken.generateKeyPairPS256();
+    defer ps256KeyPair.deinit();
+    ps256KeyPair.private.printKeyInfo();
+    var buf: [2500]u8 = undefined;
+    const signBytes = try ps256KeyPair.private.toBytes(&buf);
+    try std.testing.expectError(error.BitsIncorrect, jwtToken.signToken(signBytes[0..]));
+    const resPayload = try jwtToken.payload.marshalJSON_PAYLOAD();
+    defer allocator.free(resPayload);
+    std.debug.print("payload : {s}\n", .{resPayload});
+}
+
+test "jwt generate ps384 ok" {
+    std.log.debug("VALID GENERATE PS384 MUST BE OK", .{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    const leaks = gpa.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+
+    const header = head.Header.init(allocator, typ.Type.JWT, typ.Algorithm.PS384, .{ .cty = "jj" });
+
+    const payload = p.CustomPayload(exm).init(allocator, .{
+        .exp = 384,
+    });
+
+    var jwtToken = jwt.Token(p.CustomPayload(exm)).init(allocator, header, payload);
+    defer jwtToken.deinit();
+
+    const ps384KeyPair = try jwtToken.generateKeyPairPS384();
+    defer ps384KeyPair.deinit();
+    ps384KeyPair.private.printKeyInfo();
+    var buf: [2500]u8 = undefined;
+    const signBytes = try ps384KeyPair.private.toBytes(&buf);
+    // defer allocator.free(signBytes);
+    // //
+    const result = try jwtToken.signToken(signBytes[0..]);
+    defer allocator.free(result);
+    std.debug.print("{s}\n", .{result});
+    const resPayload = try jwtToken.payload.marshalJSON_PAYLOAD();
+    defer allocator.free(resPayload);
+    std.debug.print("payload : {s}\n", .{resPayload});
+    const public = try ps384KeyPair.private.publicKey();
+
+    const publicBytes = try public.toBytes(&buf);
+
+    const verify = try jwtToken.verifyToken(publicBytes[0..]);
+    std.debug.print("{any}\n", .{verify});
+    assert(verify);
+}
+
+test "jwt generate ps512 ok" {
+    std.log.debug("VALID GENERATE PS512 MUST BE OK", .{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    const leaks = gpa.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+
+    const header = head.Header.init(allocator, typ.Type.JWT, typ.Algorithm.PS512, .{ .cty = "jj" });
+
+    const payload = p.CustomPayload(exm).init(allocator, .{
+        .exp = 512,
+    });
+
+    var jwtToken = jwt.Token(p.CustomPayload(exm)).init(allocator, header, payload);
+    defer jwtToken.deinit();
+
+    const ps512KeyPair = try jwtToken.generateKeyPairPS512();
+    defer ps512KeyPair.deinit();
+    ps512KeyPair.private.printKeyInfo();
+    var buf: [2500]u8 = undefined;
+    const signBytes = try ps512KeyPair.private.toBytes(&buf);
+    // defer allocator.free(signBytes);
+    // //
+    const result = try jwtToken.signToken(signBytes[0..]);
+    defer allocator.free(result);
+    std.debug.print("{s}\n", .{result});
+    const resPayload = try jwtToken.payload.marshalJSON_PAYLOAD();
+    defer allocator.free(resPayload);
+    std.debug.print("payload : {s}\n", .{resPayload});
+    const public = try ps512KeyPair.private.publicKey();
+
+    const publicBytes = try public.toBytes(&buf);
+
+    const verify = try jwtToken.verifyToken(publicBytes[0..]);
+    std.debug.print("{any}\n", .{verify});
+    assert(verify);
+}
+
+test "jwt generate ps512 ok with pem" {
+    std.log.debug("VALID GENERATE PS512 MUST BE OK with pem", .{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    const leaks = gpa.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+
+    const header = head.Header.init(allocator, typ.Type.JWT, typ.Algorithm.PS512, .{ .cty = "jj" });
+
+    const payload = p.CustomPayload(exm).init(allocator, .{
+        .exp = 512512521521,
+    });
+
+    var jwtToken = jwt.Token(p.CustomPayload(exm)).init(allocator, header, payload);
+    defer jwtToken.deinit();
+
+    const pem = @embedFile("private_rsa.pem");
+    const privKey = try rr.PS512.PrivateKey.fromPem_Der(pem);
+    const ps256KeyPair = try rr.PS512.KeyPair.initFromSecret(privKey);
+    defer ps256KeyPair.deinit();
+    ps256KeyPair.private.printKeyInfo();
+    var buf: [2500]u8 = undefined;
+    const signBytes = try ps256KeyPair.private.toBytes(&buf);
+    try jwtToken.sign(signBytes[0..]);
+    const resPayload = try jwtToken.payload.marshalJSON_PAYLOAD();
+    defer allocator.free(resPayload);
+    std.debug.print("payload: {s}\n", .{resPayload});
+    const public = try ps256KeyPair.private.publicKey();
+    const publicBytes = try public.toBytes(&buf);
+    const verify = try jwtToken.verifyToken(publicBytes[0..]);
+    std.debug.print("{any}\n", .{verify});
+    assert(verify);
+}
+
+test "jwt generate rs512 ok with pem" {
+    std.log.debug("VALID GENERATE rs512 MUST BE OK with pem", .{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    const leaks = gpa.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+
+    const header = head.Header.init(allocator, typ.Type.JWT, typ.Algorithm.RS512, .{ .cty = "jj" });
+
+    const payload = p.CustomPayload(exm).init(allocator, .{
+        .exp = 111111,
+    });
+
+    var jwtToken = jwt.Token(p.CustomPayload(exm)).init(allocator, header, payload);
+    defer jwtToken.deinit();
+
+    const pem = @embedFile("private_rsa.pem");
+    const privKey = try rr.RS512.PrivateKey.fromPem_Der(pem);
+    const ps256KeyPair = try rr.RS512.KeyPair.initFromSecret(privKey);
+    defer ps256KeyPair.deinit();
+    ps256KeyPair.private.printKeyInfo();
+    var buf: [2500]u8 = undefined;
+    const signBytes = try ps256KeyPair.private.toBytes(&buf);
+    try jwtToken.sign(signBytes[0..]);
+    const resPayload = try jwtToken.payload.marshalJSON_PAYLOAD();
+    defer allocator.free(resPayload);
+    std.debug.print("payload: {s}\n", .{resPayload});
+    const public = try ps256KeyPair.private.publicKey();
+    const publicBytes = try public.toBytes(&buf);
+    const verify = try jwtToken.verifyToken(publicBytes[0..]);
+    std.debug.print("{any}\n", .{verify});
+    assert(verify);
+}
+
+test "jwt generate rs256" {
+    std.log.debug("VALID GENERATE rs256 MUST BE OK", .{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    const leaks = gpa.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+
+    const header = head.Header.init(allocator, typ.Type.JWT, typ.Algorithm.RS256, .{ .cty = "jj" });
+
+    const payload = p.CustomPayload(exm).init(allocator, .{
+        .exp = 222222,
+    });
+
+    var jwtToken = jwt.Token(p.CustomPayload(exm)).init(allocator, header, payload);
+    defer jwtToken.deinit();
+
+    const rs256KeyPair = try jwtToken.generateKeyPairRS256();
+    defer rs256KeyPair.deinit();
+    rs256KeyPair.private.printKeyInfo();
+    var buf: [2500]u8 = undefined;
+    const signBytes = try rs256KeyPair.private.toBytes(&buf);
+    // defer allocator.free(signBytes);
+    // //
+    const result = try jwtToken.signToken(signBytes[0..]);
+    defer allocator.free(result);
+    std.debug.print("{s}\n", .{result});
+    const resPayload = try jwtToken.payload.marshalJSON_PAYLOAD();
+    defer allocator.free(resPayload);
+    std.debug.print("payload : {s}\n", .{resPayload});
+    const public = try rs256KeyPair.private.publicKey();
+
+    const publicBytes = try public.toBytes(&buf);
+
+    const verify = try jwtToken.verifyToken(publicBytes[0..]);
+    std.debug.print("{any}\n", .{verify});
+    assert(verify);
+}
+
+test "jwt generate invalid rs256" {
+    std.log.debug("INVALID rs256 MUST BE FALSE", .{});
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    const leaks = gpa.detectLeaks();
+    std.debug.print("leaks={any}\n", .{leaks});
+
+    const header = head.Header.init(allocator, typ.Type.JWT, typ.Algorithm.RS256, .{ .cty = "jj" });
+
+    const payload = p.CustomPayload(exm).init(allocator, .{
+        .exp = 2,
+    });
+
+    var jwtToken = jwt.Token(p.CustomPayload(exm)).init(allocator, header, payload);
+    defer jwtToken.deinit();
+
+    const ps256KeyPair = try jwtToken.generateKeyPairRS256();
+    defer ps256KeyPair.deinit();
+    ps256KeyPair.private.printKeyInfo();
+    var buf: [2500]u8 = undefined;
+    const signBytes = try ps256KeyPair.private.toBytes(&buf);
+    // defer allocator.free(signBytes);
+    // //
+    const result = try jwtToken.signToken(signBytes[0..]);
+    defer allocator.free(result);
+    std.debug.print("{s}\n", .{result});
+    const resPayload = try jwtToken.payload.marshalJSON_PAYLOAD();
+    defer allocator.free(resPayload);
+    std.debug.print("payload : {s}\n", .{resPayload});
+
+    //and now create FAKE PUBLIC KEY
+    //==============================
+    var buf_fake: [2500]u8 = undefined;
+    const fake_key_pair = try jwtToken.generateKeyPairRS256();
+    defer fake_key_pair.deinit();
+    const public_fake = try fake_key_pair.private.publicKey();
+    const fake_bytes = try public_fake.toBytes(&buf_fake);
+
+    const verify = try jwtToken.verifyToken(fake_bytes[0..]);
+    std.debug.print("{any}\n", .{verify});
+    assert(!verify);
 }

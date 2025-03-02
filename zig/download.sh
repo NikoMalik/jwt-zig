@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-ZIG_RELEASE_DEFAULT="0.14.0-dev.2851+b074fb7dd"
+ZIG_RELEASE_DEFAULT="0.13.0"
 
 ZIG_RELEASE=${1:-$ZIG_RELEASE_DEFAULT}
 if [ "$ZIG_RELEASE" = "latest" ]; then
@@ -11,7 +11,7 @@ fi
 # Validate the release version explicitly:
 if echo "$ZIG_RELEASE" | grep -q '^builds$'; then
     echo "Downloading Zig latest build..."
-elif echo "$ZIG_RELEASE" | grep -q '^[0-9]\+\.[0-9]\+\.[0-9]\+.*$'; then
+elif echo "$ZIG_RELEASE" | grep -q '^[0-9]\+.[0-9]\+.[0-9]\+$'; then
     echo "Downloading Zig $ZIG_RELEASE release build..."
 
 else

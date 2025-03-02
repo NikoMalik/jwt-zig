@@ -1,10 +1,9 @@
 @echo off
 
 
-set ZIG_RELEASE_DEFAULT=0.14.0-dev.2851+b074fb7dd
+set ZIG_RELEASE_DEFAULT=0.13.0
 
 
-:: Determine the Zig build:
 if "%~1"=="" (
     set ZIG_RELEASE=%ZIG_RELEASE_DEFAULT%
 ) else if "%~1"=="latest" (
