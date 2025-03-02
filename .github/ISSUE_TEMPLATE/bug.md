@@ -9,14 +9,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you for submitting a bug report. It helps make Bun better.
+        Thank you for submitting a bug report.
 
 
   - type: input
     attributes:
-      label: What version of Bun is running?
+      label: What version of zig?
 
-      description: Copy the output of `bun --revision`
+      description: Copy the output of `zig version`
   - type: input
     attributes:
       label: What platform is your computer?       
