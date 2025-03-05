@@ -30,8 +30,8 @@ jobs:
       - name: Setup Zig
 
         run: |
-          chmod +x ./zig/tar.sh
-          ./zig/tar.sh
+          chmod +x ./zig/download.sh
+          ./zig/download.sh
 
       - name: Build and test
         run: ./zig/zig build test
@@ -49,7 +49,7 @@ jobs:
           sudo apt-get install -y libssl-dev
       - name: Setup Zig
         run: |
-          chmod +x ./zig/tar.sh
+          chmod +x ./zig/download.sh
           ./zig/download.sh
       - name: Build and test
         run: ./zig/zig build test
