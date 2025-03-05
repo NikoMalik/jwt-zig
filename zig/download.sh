@@ -94,9 +94,9 @@ if command -v wget > /dev/null; then
     if [ -f /etc/alpine-release ]; then
         ipv4=""
     fi
-    wget $ipv4 --header='Accept-Encoding: identity' --verbose  --quiet --output-document="$ZIG_ARCHIVE" "$ZIG_URL"
+    wget $ipv4 --header='Accept-Encoding: identity' --verbose   --output-document="$ZIG_ARCHIVE" "$ZIG_URL" 
 else
-    curl -H 'Accept-Encoding: identity' -v --silent --output "$ZIG_ARCHIVE" "$ZIG_URL"
+    curl -H 'Accept-Encoding: identity' -v --output "$ZIG_ARCHIVE" "$ZIG_URL"
 fi
 
 
