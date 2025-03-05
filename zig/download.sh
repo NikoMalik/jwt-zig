@@ -38,6 +38,7 @@ case "$(uname)" in
         ZIG_OS="macos"
         ;;
     CYGWIN*)
+
         ZIG_OS="windows"
         ;;
 
@@ -50,19 +51,18 @@ esac
 ZIG_TARGET="zig-$ZIG_OS-$ZIG_ARCH"
 
 
-# Determine the build, ensuring the server sends uncompressed data:
 if command -v wget > /dev/null; then
+    # Initialize ipv4 parameter for Alpine compatibility
+    ipv4="-4"
+    if [ -f /etc/alpine-release ]; then
+        ipv4=""
+    fi
     ZIG_URL=$(wget $ipv4 --header='Accept-Encoding: identity' --quiet -O - https://ziglang.org/download/index.json | grep -F "$ZIG_TARGET" | grep -F "$ZIG_RELEASE" | awk '{print $2}' | sed 's/[",]//g')
 else
+
     ZIG_URL=$(curl -H 'Accept-Encoding: identity' --silent https://ziglang.org/download/index.json | grep -F "$ZIG_TARGET" | grep -F "$ZIG_RELEASE" | awk '{print $2}' | sed 's/[",]//g')
 fi
 
-# And in the download section:
-if command -v wget > /dev/null; then
-    wget $ipv4 --header='Accept-Encoding: identity' --quiet --output-document="$ZIG_ARCHIVE" "$ZIG_URL"
-else
-    curl -H 'Accept-Encoding: identity' --silent --output "$ZIG_ARCHIVE" "$ZIG_URL"
-fi
 
 # Ensure the release exists:
 if [ -z "$ZIG_URL" ]; then
@@ -76,16 +76,15 @@ case "$ZIG_ARCHIVE" in
     *".tar.xz")
         ZIG_ARCHIVE_EXT=".tar.xz"
         ;;
-
     *".zip")
         ZIG_ARCHIVE_EXT=".zip"
         ;;
+
     *)
         echo "Unknown archive extension"
         exit 1
         ;;
 esac
-
 
 ZIG_DIRECTORY=$(basename "$ZIG_ARCHIVE" "$ZIG_ARCHIVE_EXT")
 
@@ -100,21 +99,24 @@ else
     curl -H 'Accept-Encoding: identity' --silent --output "$ZIG_ARCHIVE" "$ZIG_URL"
 fi
 
+
 # Extract and clean up:
 echo "Extracting $ZIG_ARCHIVE..."
 case "$ZIG_ARCHIVE_EXT" in
     ".tar.xz")
         tar -xf "$ZIG_ARCHIVE"
-
         ;;
     ".zip")
         unzip -q "$ZIG_ARCHIVE"
         ;;
+
     *)
         echo "Unexpected error"
+
         exit 1
         ;;
 esac
+
 
 rm "$ZIG_ARCHIVE"
 
@@ -126,6 +128,7 @@ mv "$ZIG_DIRECTORY/README.md" zig/
 mv "$ZIG_DIRECTORY/doc" zig/
 mv "$ZIG_DIRECTORY/lib" zig/
 mv "$ZIG_DIRECTORY/zig" zig/
+
 
 rmdir "$ZIG_DIRECTORY"
 
