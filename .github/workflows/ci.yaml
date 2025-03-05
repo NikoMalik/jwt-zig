@@ -31,7 +31,7 @@ jobs:
 
         run: |
           chmod +x ./zig/download.sh
-          ./zig/download.sh
+          ./zig/download.sh latest
 
       - name: Build and test
         run: ./zig/zig build test
@@ -50,7 +50,7 @@ jobs:
       - name: Setup Zig
         run: |
           chmod +x ./zig/download.sh
-          ./zig/download.sh
+          ./zig/download.sh latest
       - name: Build and test
         run: ./zig/zig build test
   #
@@ -114,7 +114,7 @@ jobs:
         run: |
           chmod +x ./zig/download.sh
 
-          ./zig/download.sh
+          ./zig/download.sh latest
       - name: Build and test
         run: ./zig/zig build test
 
