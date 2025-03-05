@@ -52,13 +52,16 @@ ZIG_TARGET="zig-$ZIG_OS-$ZIG_ARCH"
 
 # Determine the build, ensuring the server sends uncompressed data:
 if command -v wget > /dev/null; then
-    ipv4="-4"
-    if [ -f /etc/alpine-release ]; then
-        ipv4=""
-    fi
     ZIG_URL=$(wget $ipv4 --header='Accept-Encoding: identity' --quiet -O - https://ziglang.org/download/index.json | grep -F "$ZIG_TARGET" | grep -F "$ZIG_RELEASE" | awk '{print $2}' | sed 's/[",]//g')
 else
     ZIG_URL=$(curl -H 'Accept-Encoding: identity' --silent https://ziglang.org/download/index.json | grep -F "$ZIG_TARGET" | grep -F "$ZIG_RELEASE" | awk '{print $2}' | sed 's/[",]//g')
+fi
+
+# And in the download section:
+if command -v wget > /dev/null; then
+    wget $ipv4 --header='Accept-Encoding: identity' --quiet --output-document="$ZIG_ARCHIVE" "$ZIG_URL"
+else
+    curl -H 'Accept-Encoding: identity' --silent --output "$ZIG_ARCHIVE" "$ZIG_URL"
 fi
 
 # Ensure the release exists:
