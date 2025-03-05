@@ -16,7 +16,7 @@ This library is built with simplicity and efficiency in mind. Whether you're bui
 ---
 
 # Zig Version 
-Zig >= 0.14.0-dev.2851+b074fb7dd
+Zig >= 0.14.0
 
 ## Features 🔥
 

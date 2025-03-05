@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-ZIG_RELEASE_DEFAULT="0.13.0"
+ZIG_RELEASE_DEFAULT="0.14.0"
 
 ZIG_RELEASE=${1:-$ZIG_RELEASE_DEFAULT}
 if [ "$ZIG_RELEASE" = "latest" ]; then

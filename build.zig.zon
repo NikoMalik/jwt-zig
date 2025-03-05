@@ -1,6 +1,7 @@
 .{
-    .name = "jwt-zig",
+    .name = .jwt_zig,
     .version = "0.5.7",
+    .fingerprint = 0x53e61c40931e6c6,
     .dependencies = .{
         .cricket = .{
             .url = "https://github.com/NikoMalik/cricket.zig/archive/refs/heads/main.tar.gz",
