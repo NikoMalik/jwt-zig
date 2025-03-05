@@ -59,9 +59,9 @@ if command -v wget > /dev/null; then
     ipv4=""
     fi
     # shellcheck disable=SC2086 # We control ipv4 and it'll always either be empty or -4
-    ZIG_URL=$(wget $ipv4 --quiet -O - https://ziglang.org/download/index.json | grep -F "$ZIG_TARGET" | grep -F "$ZIG_RELEASE" | awk '{print $2}' | sed 's/[",]//g')
+    ZIG_URL=$(wget $ipv4 -qO - https://ziglang.org/download/index.json | grep -F "$ZIG_TARGET" | grep -F "$ZIG_RELEASE" | awk '{print $2}' | sed 's/[",]//g')
 else
-    ZIG_URL=$(curl --silent https://ziglang.org/download/index.json | grep -F "$ZIG_TARGET" | grep -F "$ZIG_RELEASE" | awk '{print $2}' | sed 's/[",]//g')
+    ZIG_URL=$(curl -s  https://ziglang.org/download/index.json | grep -F "$ZIG_TARGET" | grep -F "$ZIG_RELEASE" | awk '{print $2}' | sed 's/[",]//g')
 fi
 
 
