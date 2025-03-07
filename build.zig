@@ -66,49 +66,28 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
-    if (builtin.os.tag == .windows) {
-        const openssl_path = std.os.getenv("OPENSSL_ROOT_DIR") orelse "C:/Program Files/OpenSSL";
+    lib_mod.linkSystemLibrary("ssl", .{});
+    lib_mod.linkSystemLibrary("crypto", .{});
 
-        lib_mod.addIncludePath(.{ .cwd_relative = openssl_path ++ "/include" });
+    lib.linkLibC();
+    lib.linkSystemLibrary("ssl");
+    lib.linkSystemLibrary("crypto");
 
-        lib_mod.addLibraryPath(.{ .cwd_relative = openssl_path ++ "/lib" });
-        lib_mod.addLibraryPath(.{ .cwd_relative = openssl_path ++ "/bin" });
+    jwt_test.linkSystemLibrary("ssl");
+    jwt_test.linkSystemLibrary("crypto");
+    jwt_test.linkLibC();
+    rsa_test.linkLibC();
 
-        const win_libs = [_][]const u8{ "libssl-3-x64", "libcrypto-3-x64", "crypt32", "ws2_32", "advapi32", "user32" };
+    rsa_test.linkSystemLibrary("ssl");
+    rsa_test.linkSystemLibrary("crypto");
 
-        inline for (win_libs) |lib_name| {
-            lib_mod.linkSystemLibrary(lib_name, .{});
-            jwt_test.linkSystemLibrary(lib_name);
-            rsa_test.linkSystemLibrary(lib_name);
-            unit_tests_1.linkSystemLibrary(lib_name);
-            unit_tests_2.linkSystemLibrary(lib_name);
-            lib.linkSystemLibrary(lib_name);
-            unit_tests_3.linkSystemLibrary(lib_name);
-        }
-    } else {
-        lib_mod.linkSystemLibrary("ssl", .{});
-        lib_mod.linkSystemLibrary("crypto", .{});
-
-        lib.linkLibC();
-        lib.linkSystemLibrary("ssl");
-        lib.linkSystemLibrary("crypto");
-
-        jwt_test.linkSystemLibrary("ssl");
-        jwt_test.linkSystemLibrary("crypto");
-        jwt_test.linkLibC();
-        rsa_test.linkLibC();
-
-        rsa_test.linkSystemLibrary("ssl");
-        rsa_test.linkSystemLibrary("crypto");
-
-        unit_tests_3.linkSystemLibrary("ssl");
-        unit_tests_3.linkSystemLibrary("crypto");
-        unit_tests_3.linkLibC();
-        unit_tests_2.linkLibC();
-        unit_tests_1.linkSystemLibrary("ssl");
-        unit_tests_1.linkSystemLibrary("crypto");
-        unit_tests_1.linkLibC();
-    }
+    unit_tests_3.linkSystemLibrary("ssl");
+    unit_tests_3.linkSystemLibrary("crypto");
+    unit_tests_3.linkLibC();
+    unit_tests_2.linkLibC();
+    unit_tests_1.linkSystemLibrary("ssl");
+    unit_tests_1.linkSystemLibrary("crypto");
+    unit_tests_1.linkLibC();
 
     // tests running
     // ============
