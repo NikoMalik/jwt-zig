@@ -10,7 +10,7 @@ const crypto_lib: CryptoLib = .openssl;
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
 
-    const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .ReleaseSafe });
+    const optimize = b.standardOptimizeOption(.{});
 
     const lib_mod = b.addModule("jwt", .{
         .root_source_file = b.path("root.zig"),
