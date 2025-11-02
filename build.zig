@@ -18,6 +18,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
+    lib_mod.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
     const cricket = b.dependency("cricket", .{
         .target = target,
         .optimize = optimize,
@@ -72,6 +73,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
+    rsa_test_module.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
     const rsa_test = b.addTest(.{
         .name = "rsa",
         .root_module = rsa_test_module,
@@ -82,6 +84,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
+    jwt_test_module.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
     const jwt_test = b.addTest(.{
         .name = "jwt",
         .root_module = jwt_test_module,
