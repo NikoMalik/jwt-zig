@@ -414,6 +414,55 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
                     .mont_ctx = mont_ctx,
                 };
             }
+
+            pub fn fromPem_Der(data: []const u8) !PublicKey {
+                const bio = ssl.BIO_new_mem_buf(data.ptr, @intCast(data.len)) orelse return error.BioCreationFailed;
+                defer _ = ssl.BIO_free(bio);
+
+                const is_pem = blk: {
+                    const pem_header = "-----BEGIN";
+                    if (data.len < pem_header.len) break :blk false;
+                    break :blk std.mem.startsWith(u8, data, pem_header);
+                };
+
+                var pkey: ?*ssl.EVP_PKEY = null;
+
+                if (is_pem) {
+                    // parse as PEM
+                    pkey = ssl.PEM_read_bio_PUBKEY(bio, null, null, null);
+                } else {
+                    // parse as DER
+                    pkey = ssl.d2i_PUBKEY_bio(bio, null);
+                }
+
+                if (pkey == null) {
+                    printOpensslError();
+                    return error.KeyParseFailed;
+                }
+
+                const evp_key = pkey.?;
+                errdefer ssl.EVP_PKEY_free(evp_key);
+
+                if (rsaBits(evp_key) != modulus_bits) {
+                    return error.BitsIncorrect;
+                }
+
+                const e3: *BIGNUM = try sslAlloc(BIGNUM, ssl.BN_new());
+                defer ssl.BN_free(e3);
+                try sslTry(ssl.BN_set_word(e3, ssl.RSA_3));
+                const ef4: *BIGNUM = try sslAlloc(BIGNUM, ssl.BN_new());
+                defer ssl.BN_free(ef4);
+                try sslTry(ssl.BN_set_word(ef4, ssl.RSA_F4));
+                if (!bnConstantTimeEqual(e3, rsaParam(.e, evp_key)) and !bnConstantTimeEqual(ef4, rsaParam(.e, evp_key))) {
+                    return error.UnexpectedCheck;
+                }
+
+                const mont_ctx = try newMont_ctx(rsaParam(.n, evp_key));
+                return .{
+                    .key = evp_key,
+                    .mont_ctx = mont_ctx,
+                };
+            }
         };
 
         pub const PrivateKey = struct {
