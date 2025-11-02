@@ -128,4 +128,28 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_unit_test4.step);
 
     test_step.dependOn(&run_unit_test5.step);
+
+    // Example: JWKS flow
+    const example_jwks_module = b.createModule(.{
+        .root_source_file = b.path("example_jwks.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    example_jwks_module.addImport("jwt", lib_mod);
+    example_jwks_module.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
+
+    const example_jwks_exe = b.addExecutable(.{
+        .name = "example_jwks",
+        .root_module = example_jwks_module,
+    });
+    example_jwks_exe.linkLibC();
+    example_jwks_exe.linkSystemLibrary("ssl");
+    example_jwks_exe.linkSystemLibrary("crypto");
+
+    b.installArtifact(example_jwks_exe);
+
+    const run_example_jwks = b.addRunArtifact(example_jwks_exe);
+    const example_step = b.step("example", "Run JWKS example");
+    example_step.dependOn(&run_example_jwks.step);
 }

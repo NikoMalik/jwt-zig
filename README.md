@@ -286,6 +286,78 @@ pub fn main() void {
 }
 ```
 
+# JWKS-Style Token Verification 🔐
+
+This library supports JWKS-style token verification for server-to-server authentication scenarios. You can export public keys as PEM and use `PublicKey.fromPem_Der` to load them for verification.
+
+```zig
+const std = @import("std");
+const jwt = @import("jwt");
+const rsa = @import("rsa.zig");
+const time = @import("time.zig");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Auth server: Generate key and sign token
+    const rsa_algo = rsa.RSAAlgorithm(2048, .RSASSA_PKCS1_v1_5, .sha256);
+    var priv_key = try rsa_algo.generateKey();
+    defer priv_key.deinit();
+    var pub_key = try priv_key.publicKey();
+    defer pub_key.deinit();
+
+    // Export public key to PEM (this would be in your JWKS endpoint)
+    const pub_key_pem = try rsa.exportPublicKey(pub_key.key, allocator);
+    defer allocator.free(pub_key_pem);
+
+    // Sign a token
+    const header = jwt.header.Header.init(allocator, jwt.typ.Type.JWT, jwt.typ.Algorithm.RS256, .{});
+    const now = @as(u64, @intCast(std.time.timestamp()));
+    const payload = jwt.payload.Payload{
+        .allocator = allocator,
+        .sub = "service-abc",
+        .iss = "https://auth.example.com",
+        .exp = time.NumericDate.init(allocator, now + 3600),
+    };
+    var jwt_token = jwt.jwt.Token(jwt.payload.Payload).init(allocator, header, payload);
+    defer jwt_token.deinit();
+    
+    var der_buffer: [4096]u8 = undefined;
+    const private_bytes = try priv_key.toBytes(&der_buffer);
+    const signed_token = try jwt_token.signToken(private_bytes);
+    defer allocator.free(signed_token);
+
+    // Resource server: Parse and verify using public key from JWKS
+    var iter = std.mem.splitSequence(u8, signed_token, ".");
+    _ = iter.first();
+    _ = iter.next();
+    const sig_b64 = iter.next() orelse return error.InvalidTokenFormat;
+    const sig_decoded_size = std.base64.url_safe_no_pad.Decoder.calcSizeForSlice(sig_b64) catch 0;
+    var sig_buffer: [512]u8 = undefined;
+    _ = try std.base64.url_safe_no_pad.Decoder.decode(sig_buffer[0..sig_decoded_size], sig_b64);
+    
+    var parsed_token = try jwt.parse.parseToken(
+        jwt.payload.Payload,
+        allocator,
+        signed_token,
+        sig_buffer[0..sig_decoded_size]
+    );
+    defer parsed_token.deinit();
+
+    // Load public key from PEM and verify
+    const verification_pub_key = try rsa_algo.PublicKey.fromPem_Der(pub_key_pem);
+    defer verification_pub_key.deinit();
+    const pub_key_der = try verification_pub_key.toBytes(&der_buffer);
+    const is_valid = try parsed_token.verifyToken(pub_key_der);
+
+    std.debug.print("Token verified: {}\n", .{is_valid});
+}
+```
+
+Run the complete example: `zig build example`
+
 # Memory Management 🧠
 
 This library uses Zig's allocator interface to manage memory. When using functions like allocator.dupe(), the allocated memory must be freed by calling the corresponding deinitialization method (e.g., deinit()). Always call deinit() on tokens and parsed objects when they're no longer needed to prevent memory leaks.

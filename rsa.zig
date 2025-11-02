@@ -213,6 +213,23 @@ fn exportPrivateKey(pkey: *ssl.EVP_PKEY, allocator: std.mem.Allocator) ![]u8 {
     return result;
 }
 
+// Export public key to memory
+//=============================
+pub fn exportPublicKey(pkey: *ssl.EVP_PKEY, allocator: std.mem.Allocator) ![]u8 {
+    const bio = ssl.BIO_new(ssl.BIO_s_mem()) orelse return error.BioCreationFailed;
+    defer _ = ssl.BIO_free(bio);
+
+    if (ssl.PEM_write_bio_PUBKEY(bio, pkey) != 1)
+        return error.WriteFailed;
+
+    var data_ptr: [*c]u8 = undefined;
+    const len = ssl.BIO_get_mem_data(bio, &data_ptr);
+    const size = rsaSint_to(len);
+    const result = try allocator.alloc(u8, size);
+    @memcpy(result, data_ptr[0..size]);
+    return result;
+}
+
 fn printOpensslError() void {
     const err = ssl.ERR_get_error();
     if (err != 0) {
@@ -1267,11 +1284,84 @@ test "RSA-PSS with different hash functions" {
 test "RSA NULL pointer handling" {
     const rsa = RSAAlgorithm(2048, .RSA_PSS, .sha256);
 
-    // try std.testing.expectError(error.VerifyInitFailed, rsa.verify(.{ .key = undefined, .mont_ctx = undefined }, "test", &[0]u8{}));
-
-    // Skip this test as it causes segfault with undefined pointers
+    // Skip this test as PublicKey struct doesn't support NULL pointers
     // OpenSSL expects valid pointers and doesn't gracefully handle undefined
-    // Testing real NULL pointers would require different C API usage pattern
     _ = rsa;
-    std.debug.print("Skipping NULL pointer test - OpenSSL requires valid pointers\n", .{});
+    std.debug.print("Skipping NULL pointer test - PublicKey requires valid pointers\n", .{});
+}
+
+test "PublicKey.fromPem_Der - PEM format" {
+    std.debug.print("Test PublicKey.fromPem_Der - PEM format\n", .{});
+    const rsa = RSAAlgorithm(2048, .RSA_PSS, .sha256);
+    const allocator = std.testing.allocator;
+
+    // Generate a key pair
+    const priv_key = try rsa.generateKey();
+    defer priv_key.deinit();
+    std.debug.print("Generated private key\n {any}\n", .{priv_key});
+
+    const pub_key = try priv_key.publicKey();
+    defer pub_key.deinit();
+    std.debug.print("Generated public key\n", .{});
+
+    // Export public key to PEM format
+    const pub_key_pem = try exportPublicKey(pub_key.key, allocator);
+    defer allocator.free(pub_key_pem);
+    std.debug.print("Exported public key to PEM format\n", .{});
+    // Parse it back using fromPem_Der
+    const parsed_pub_key = try rsa.PublicKey.fromPem_Der(pub_key_pem);
+    defer parsed_pub_key.deinit();
+    std.debug.print("Parsed public key\n", .{});
+    // Verify the keys work for signing/verification
+    const msg = "Test message for PEM parsing";
+    var sig: rsa.Signature = undefined;
+    const sig_len = try priv_key.sign(msg, &sig);
+    std.debug.print("Signed message\n", .{});
+    try rsa.verify(parsed_pub_key, msg, sig[0..sig_len]);
+    std.debug.print("Verified message\n", .{});
+}
+
+test "PublicKey.fromPem_Der - round trip" {
+    const rsa = RSAAlgorithm(2048, .RSA_PSS, .sha256);
+    const allocator = std.testing.allocator;
+
+    // Generate a key pair
+    const priv_key = try rsa.generateKey();
+    defer priv_key.deinit();
+
+    const pub_key = try priv_key.publicKey();
+    defer pub_key.deinit();
+
+    // Export public key to PEM format
+    const pub_key_pem = try exportPublicKey(pub_key.key, allocator);
+    defer allocator.free(pub_key_pem);
+
+    // Parse it back using fromPem_Der
+    const parsed_pub_key1 = try rsa.PublicKey.fromPem_Der(pub_key_pem);
+    defer parsed_pub_key1.deinit();
+
+    // Export again
+    const pub_key_pem2 = try exportPublicKey(parsed_pub_key1.key, allocator);
+    defer allocator.free(pub_key_pem2);
+
+    // Parse again
+    const parsed_pub_key2 = try rsa.PublicKey.fromPem_Der(pub_key_pem2);
+    defer parsed_pub_key2.deinit();
+
+    // Verify both work for signing/verification
+    const msg = "Test message for round trip";
+    var sig: rsa.Signature = undefined;
+    const sig_len = try priv_key.sign(msg, &sig);
+
+    try rsa.verify(parsed_pub_key1, msg, sig[0..sig_len]);
+    try rsa.verify(parsed_pub_key2, msg, sig[0..sig_len]);
+}
+
+test "PublicKey.fromPem_Der - invalid data" {
+    const rsa = RSAAlgorithm(2048, .RSA_PSS, .sha256);
+
+    // Test with invalid PEM data
+    const invalid_pem = "-----BEGIN INVALID-----\nInvalid key data\n-----END INVALID-----";
+    const result = rsa.PublicKey.fromPem_Der(invalid_pem);
+    try std.testing.expectError(error.KeyParseFailed, result);
 }
