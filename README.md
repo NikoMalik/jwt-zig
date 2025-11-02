@@ -389,6 +389,62 @@ pub fn main() !void {
 
 Run the complete example: `zig build example`
 
+# Database Storage of Keys 💾
+
+RSA keys can be serialized to DER format for storage in databases and restored later. This is useful for key management across application restarts or for distributing keys between services.
+
+## Available Methods
+
+- **`PrivateKey.toBytes(out)`** - Serialize private key to DER bytes
+- **`PrivateKey.fromBytes(raw)`** - Deserialize private key from DER bytes
+- **`PublicKey.toBytes(out)`** - Serialize public key to DER bytes
+- **`PublicKey.fromBytes(raw)`** - Deserialize public key from DER bytes
+
+## Example
+
+```zig
+const std = @import("std");
+const rsa = @import("rsa.zig");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    const rsa_algo = rsa.RSAAlgorithm(2048, .RSASSA_PKCS1_v1_5, .sha256);
+
+    // Generate key pair
+    var priv_key = try rsa_algo.generateKey();
+    defer priv_key.deinit();
+    var pub_key = try priv_key.publicKey();
+    defer pub_key.deinit();
+
+    // Serialize keys to DER bytes (for database storage)
+    var priv_buffer: [4096]u8 = undefined;
+    const priv_bytes = try priv_key.toBytes(&priv_buffer);
+
+    var pub_buffer: [4096]u8 = undefined;
+    const pub_bytes = try pub_key.toBytes(&pub_buffer);
+
+    // Store in database:
+    // INSERT INTO keys (private_key, public_key) VALUES (priv_bytes, pub_bytes);
+
+    // Load from database later:
+    const loaded_priv_key = try rsa_algo.PrivateKey.fromBytes(priv_bytes);
+    defer loaded_priv_key.deinit();
+
+    const loaded_pub_key = try rsa_algo.PublicKey.fromBytes(pub_bytes);
+    defer loaded_pub_key.deinit();
+
+    // Use the loaded keys for signing/verification
+    const msg = "test message";
+    var sig: rsa_algo.Signature = undefined;
+    const sig_len = try loaded_priv_key.sign(msg, &sig);
+    try rsa_algo.verify(loaded_pub_key, msg, sig[0..sig_len]);
+}
+```
+
+Run the complete example: `zig build example_db`
+
 # Memory Management 🧠
 
 This library uses Zig's allocator interface to manage memory. When using functions like allocator.dupe(), the allocated memory must be freed by calling the corresponding deinitialization method (e.g., deinit()). Always call deinit() on tokens and parsed objects when they're no longer needed to prevent memory leaks.

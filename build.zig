@@ -152,4 +152,27 @@ pub fn build(b: *std.Build) void {
     const run_example_jwks = b.addRunArtifact(example_jwks_exe);
     const example_step = b.step("example", "Run JWKS example");
     example_step.dependOn(&run_example_jwks.step);
+
+    // Example: DB storage
+    const example_db_module = b.createModule(.{
+        .root_source_file = b.path("example_db_storage.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    example_db_module.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
+
+    const example_db_exe = b.addExecutable(.{
+        .name = "example_db_storage",
+        .root_module = example_db_module,
+    });
+    example_db_exe.linkLibC();
+    example_db_exe.linkSystemLibrary("ssl");
+    example_db_exe.linkSystemLibrary("crypto");
+
+    b.installArtifact(example_db_exe);
+
+    const run_example_db = b.addRunArtifact(example_db_exe);
+    const example_db_step = b.step("example_db", "Run DB storage example");
+    example_db_step.dependOn(&run_example_db.step);
 }
