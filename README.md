@@ -323,7 +323,7 @@ pub fn main() !void {
     };
     var jwt_token = jwt.jwt.Token(jwt.payload.Payload).init(allocator, header, payload);
     defer jwt_token.deinit();
-    
+
     var der_buffer: [4096]u8 = undefined;
     const private_bytes = try priv_key.toBytes(&der_buffer);
     const signed_token = try jwt_token.signToken(private_bytes);
@@ -337,7 +337,7 @@ pub fn main() !void {
     const sig_decoded_size = std.base64.url_safe_no_pad.Decoder.calcSizeForSlice(sig_b64) catch 0;
     var sig_buffer: [512]u8 = undefined;
     _ = try std.base64.url_safe_no_pad.Decoder.decode(sig_buffer[0..sig_decoded_size], sig_b64);
-    
+
     var parsed_token = try jwt.parse.parseToken(
         jwt.payload.Payload,
         allocator,

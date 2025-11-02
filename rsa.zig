@@ -401,6 +401,25 @@ pub fn RSAAlgorithm(comptime modulus_bits: u16, comptime padding: Padding, compt
                 return out[0..@as(usize, @intCast(len))];
             }
 
+            /// Extract modulus (n) and exponent (e) as hex strings for JWKS
+            pub fn getModulusAndExponent(self: PublicKey, allocator: std.mem.Allocator) !struct { n: []u8, e: []u8 } {
+                const rsa_key = rsaRef(self.key);
+                const n_ptr = ssl.RSA_get0_n(rsa_key).?;
+                const e_ptr = ssl.RSA_get0_e(rsa_key).?;
+
+                const n_hex = ssl.BN_bn2hex(n_ptr);
+                const e_hex = ssl.BN_bn2hex(e_ptr);
+                defer {
+                    ssl.OPENSSL_free(n_hex);
+                    ssl.OPENSSL_free(e_hex);
+                }
+
+                const n_str = try allocator.dupe(u8, std.mem.sliceTo(n_hex, 0));
+                const e_str = try allocator.dupe(u8, std.mem.sliceTo(e_hex, 0));
+
+                return .{ .n = n_str, .e = e_str };
+            }
+
             pub fn fromBytes(raw: []u8) !PublicKey {
                 const max_len = 1000;
                 if (raw.len >= max_len) {

@@ -3,7 +3,11 @@ const jwt = @import("root.zig");
 const head = jwt.header;
 const rsa = @import("rsa.zig");
 const time = @import("time.zig");
-const base64 = std.base64.url_safe_no_pad.Encoder;
+const client = @import("client.zig");
+
+const base64url = client.base64url;
+const JwksClient = client.JwksClient;
+const createJwksJson = client.createJwksJson;
 
 // Example demonstrating JWT signing and verification with JWKS-style key management
 // This mimics a server-to-server authentication scenario where:
@@ -60,37 +64,66 @@ pub fn main() !void {
     std.debug.print("\nSigned JWT:\n{s}\n", .{signed_token});
 
     // =====================================================================
+    // Simulate JWKS Endpoint - Publish Public Key in JWKS Format
+    // =====================================================================
+    std.debug.print("\n=== SIMULATING JWKS ENDPOINT ===\n", .{});
+
+    // Extract n and e from public key for JWKS
+    const ne = try pub_key.getModulusAndExponent(allocator);
+    defer allocator.free(ne.n);
+    defer allocator.free(ne.e);
+
+    // Create JWKS JSON using the reusable function
+    const jwks_json = try createJwksJson(ne.n, ne.e, "key-id-1", "RS256", allocator);
+    defer allocator.free(jwks_json);
+
+    std.debug.print("JWKS JSON:\n{s}\n", .{jwks_json});
+
+    // =====================================================================
     // Part 2: Resource Server - Verify JWT Using Public Key from JWKS
     // =====================================================================
     std.debug.print("\n=== RESOURCE SERVER ===\n", .{});
 
-    // Parse the token to extract kid (Key ID)
-    // First, we need to extract the signature from the raw token
+    // Use JwksClient to extract kid from token
+    const token_kid = try JwksClient.extractKid(signed_token, allocator);
+    defer if (token_kid) |kid| allocator.free(kid);
+
+    std.debug.print("\n1. Extracted kid from token header: {s}\n", .{token_kid orelse "none"});
+    std.debug.print("2. Fetching JWKS from auth server's /well-known/jwks.json...\n", .{});
+    std.debug.print("   (Simulated - using the JWKS we generated above)\n", .{});
+
+    // Use JwksClient to parse JWKS JSON
+    const jwks = try JwksClient.parseJwks(allocator, jwks_json);
+    defer JwksClient.deinit(jwks, allocator);
+
+    std.debug.print("3. Parsed JWKS, found {d} key(s)\n", .{jwks.keys.len});
+
+    // Find the key matching the kid
+    const jwk = if (token_kid) |kid| JwksClient.findKeyByKid(jwks, kid) else null;
+    if (jwk == null) {
+        std.debug.print("4. ❌ No key found matching kid!\n", .{});
+        return error.KeyNotFound;
+    }
+
+    std.debug.print("4. Found key matching kid: {s}\n", .{jwk.?.kid});
+    std.debug.print("5. Parsing token and verifying with this key...\n", .{});
+
+    // Parse the token for verification (need signature from raw token)
     var iter = std.mem.splitSequence(u8, signed_token, ".");
     _ = iter.first(); // header
     _ = iter.next(); // payload
     const sig_b64 = iter.next() orelse return error.InvalidTokenFormat;
 
-    // Decode the signature from base64
-    const sig_decoded_size = std.base64.url_safe_no_pad.Decoder.calcSizeForSlice(sig_b64) catch 0;
+    const sig_decoded_size = base64url.Decoder.calcSizeForSlice(sig_b64) catch 0;
     if (sig_decoded_size == 0) return error.InvalidSignature;
     var sig_buffer: [512]u8 = undefined;
-    _ = try std.base64.url_safe_no_pad.Decoder.decode(sig_buffer[0..sig_decoded_size], sig_b64);
-    const sig_decoded_slice = sig_buffer[0..sig_decoded_size];
+    _ = try base64url.Decoder.decode(sig_buffer[0..sig_decoded_size], sig_b64);
 
-    // Now parse with the signature
-    var parsed_token = try jwt.parse.parseToken(jwt.payload.Payload, allocator, signed_token, sig_decoded_slice);
+    var parsed_token = try jwt.parse.parseToken(jwt.payload.Payload, allocator, signed_token, sig_buffer[0..sig_decoded_size]);
     defer parsed_token.deinit();
 
-    // In a real scenario, you would:
-    // 1. Extract kid from token header
-    // 2. Fetch JWKS from auth server's /well-known/jwks.json endpoint
-    // 3. Find the key matching the kid
-    // 4. Parse the public key from JWKS (n, e values in base64)
-
-    // For this example, we'll parse the PEM we exported earlier
-    std.debug.print("Verifying token using public key from JWKS...\n", .{});
-
+    // In production, you would reconstruct the public key from JWK n, e values here
+    // For this example, we'll use the PEM format which is more practical
     const verification_pub_key = try rsa_algo.PublicKey.fromPem_Der(pub_key_pem);
     defer verification_pub_key.deinit();
 
@@ -100,14 +133,14 @@ pub fn main() !void {
 
     const is_valid = try parsed_token.verifyToken(pub_key_der);
 
-    std.debug.print("Token verification: {}\n", .{is_valid});
+    std.debug.print("6. Token verification: {}\n", .{is_valid});
 
     if (is_valid) {
         const payload_json = try parsed_token.payload.marshalJSON_PAYLOAD();
         defer allocator.free(payload_json);
-        std.debug.print("Token is valid! Payload: {s}\n", .{payload_json});
+        std.debug.print("\n✅ Token is valid! Payload: {s}\n", .{payload_json});
     } else {
-        std.debug.print("Token verification failed!\n", .{});
+        std.debug.print("\n❌ Token verification failed!\n", .{});
         return error.VerificationFailed;
     }
 }

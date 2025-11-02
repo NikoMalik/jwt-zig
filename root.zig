@@ -7,3 +7,4 @@ const cricket = @import("cricket");
 pub const typ = @import("algorithm.zig");
 pub const eddsa = @import("eddsa.zig");
 pub const rsa = @import("rsa.zig");
+pub const client = @import("client.zig");
