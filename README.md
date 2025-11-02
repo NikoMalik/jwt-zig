@@ -288,13 +288,28 @@ pub fn main() void {
 
 # JWKS-Style Token Verification 🔐
 
-This library supports JWKS-style token verification for server-to-server authentication scenarios. You can export public keys as PEM and use `PublicKey.fromPem_Der` to load them for verification.
+This library supports JWKS-style token verification for server-to-server authentication scenarios. The library includes a reusable `client.zig` module with helper functions for extracting Key IDs (kids), parsing JWKS JSON, and creating JWKS endpoints.
+
+## Available Client Functions
+
+- **`JwksClient.extractKid(token, allocator)`** - Extract the Key ID from a JWT header
+- **`JwksClient.parseJwks(jwks_json, allocator)`** - Parse JWKS JSON into a structured format
+- **`JwksClient.findKeyByKid(jwks, kid)`** - Find a specific key by its Key ID
+- **`JwksClient.deinit(jwks, allocator)`** - Free JWKS memory
+- **`createJwksJson(n_hex, e_hex, kid, alg, allocator)`** - Create JWKS JSON from RSA key parameters
+
+## Complete Example
 
 ```zig
 const std = @import("std");
 const jwt = @import("jwt");
 const rsa = @import("rsa.zig");
 const time = @import("time.zig");
+const client = @import("client.zig");
+
+const base64url = client.base64url;
+const JwksClient = client.JwksClient;
+const createJwksJson = client.createJwksJson;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -308,12 +323,12 @@ pub fn main() !void {
     var pub_key = try priv_key.publicKey();
     defer pub_key.deinit();
 
-    // Export public key to PEM (this would be in your JWKS endpoint)
+    // Export public key to PEM
     const pub_key_pem = try rsa.exportPublicKey(pub_key.key, allocator);
     defer allocator.free(pub_key_pem);
 
-    // Sign a token
-    const header = jwt.header.Header.init(allocator, jwt.typ.Type.JWT, jwt.typ.Algorithm.RS256, .{});
+    // Sign a token with kid
+    const header = jwt.header.Header.init(allocator, jwt.typ.Type.JWT, jwt.typ.Algorithm.RS256, .{ .kid = "key-id-1" });
     const now = @as(u64, @intCast(std.time.timestamp()));
     const payload = jwt.payload.Payload{
         .allocator = allocator,
@@ -329,14 +344,31 @@ pub fn main() !void {
     const signed_token = try jwt_token.signToken(private_bytes);
     defer allocator.free(signed_token);
 
-    // Resource server: Parse and verify using public key from JWKS
+    // Create JWKS JSON for the public key
+    const ne = try pub_key.getModulusAndExponent(allocator);
+    defer allocator.free(ne.n);
+    defer allocator.free(ne.e);
+    const jwks_json = try createJwksJson(ne.n, ne.e, "key-id-1", "RS256", allocator);
+    defer allocator.free(jwks_json);
+
+    // Resource server: Extract kid and parse JWKS
+    const token_kid = try JwksClient.extractKid(signed_token, allocator);
+    defer if (token_kid) |kid| allocator.free(kid);
+
+    const jwks = try JwksClient.parseJwks(allocator, jwks_json);
+    defer JwksClient.deinit(jwks, allocator);
+
+    const jwk = if (token_kid) |kid| JwksClient.findKeyByKid(jwks, kid) else null;
+    if (jwk == null) return error.KeyNotFound;
+
+    // Parse and verify token
     var iter = std.mem.splitSequence(u8, signed_token, ".");
     _ = iter.first();
     _ = iter.next();
     const sig_b64 = iter.next() orelse return error.InvalidTokenFormat;
-    const sig_decoded_size = std.base64.url_safe_no_pad.Decoder.calcSizeForSlice(sig_b64) catch 0;
+    const sig_decoded_size = base64url.Decoder.calcSizeForSlice(sig_b64) catch 0;
     var sig_buffer: [512]u8 = undefined;
-    _ = try std.base64.url_safe_no_pad.Decoder.decode(sig_buffer[0..sig_decoded_size], sig_b64);
+    _ = try base64url.Decoder.decode(sig_buffer[0..sig_decoded_size], sig_b64);
 
     var parsed_token = try jwt.parse.parseToken(
         jwt.payload.Payload,
@@ -346,7 +378,6 @@ pub fn main() !void {
     );
     defer parsed_token.deinit();
 
-    // Load public key from PEM and verify
     const verification_pub_key = try rsa_algo.PublicKey.fromPem_Der(pub_key_pem);
     defer verification_pub_key.deinit();
     const pub_key_der = try verification_pub_key.toBytes(&der_buffer);
