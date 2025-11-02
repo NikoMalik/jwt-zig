@@ -21,12 +21,13 @@ pub const NumericDate = struct {
     }
 
     pub fn string(n: *NumericDate) ![]const u8 {
-        var list = std.ArrayList(u8).init(n.allocator);
-        defer list.deinit();
+        var list = std.ArrayList(u8){};
+        defer list.deinit(n.allocator);
 
-        try list.writer().print("{d}", .{n.time});
+        var writer = list.writer(n.allocator);
+        try writer.print("{d}", .{n.time});
 
-        return list.toOwnedSlice();
+        return list.toOwnedSlice(n.allocator);
     }
 
     pub fn unmarshalJSON(n: *NumericDate, json: []const u8) !void {

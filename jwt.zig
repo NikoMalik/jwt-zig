@@ -211,17 +211,17 @@ pub fn Token(comptime Payload: type) type {
         }
 
         inline fn signingString(t: *Self, js: *std.ArrayList(u8)) !void {
-            var writer = js.writer();
+            var writer = js.writer(t.allocator);
             const header = try t.header.unmarshalHeader();
             defer t.header.free_Base64URL(header);
             try writer.writeAll(header);
-            t.sep1 = writer.context.items.len;
+            t.sep1 = writer.context.self.items.len;
             try writer.writeAll(".");
             const payload = try pl.unmarshalPaylod_custom((t.payload));
 
             defer t.allocator.free(payload);
             try writer.writeAll(payload);
-            t.sep2 = writer.context.items.len;
+            t.sep2 = writer.context.self.items.len;
         }
 
         //for EDDSA KEY IS PRIVATE KEY
@@ -229,14 +229,14 @@ pub fn Token(comptime Payload: type) type {
         //for rsa only der is available
         //Sign token gives you signed token which not free after deinit token
         pub fn signToken(t: *Self, key: ?[]u8) ![]const u8 {
-            var js = std.ArrayList(u8).init(t.allocator);
-            defer js.deinit();
+            var js = std.ArrayList(u8){};
+            defer js.deinit(t.allocator);
             try t.signingString(&js);
             const sst = js.items;
 
             switch (t.header.alg) {
                 .EDDSA => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var edd: eddsa.Eddsa = undefined;
                     if (key) |k| {
                         if (k.len != std.crypto.sign.Ed25519.SecretKey.encoded_length) {
@@ -264,7 +264,7 @@ pub fn Token(comptime Payload: type) type {
                     // try writer.writeAll(sst);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -274,7 +274,7 @@ pub fn Token(comptime Payload: type) type {
                 },
 
                 .HS256 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var hmac: [HS256.mac_length]u8 = undefined;
 
                     if (key) |k| {
@@ -303,7 +303,7 @@ pub fn Token(comptime Payload: type) type {
                     // try writer.writeAll(sst);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -311,7 +311,7 @@ pub fn Token(comptime Payload: type) type {
                     return tokenRaw;
                 },
                 .HS384 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var hmac: [HS384.mac_length]u8 = undefined;
                     if (key) |k| {
                         if (k.len != HS384.key_length) {
@@ -337,7 +337,7 @@ pub fn Token(comptime Payload: type) type {
                     // try writer.writeAll(sst);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -345,7 +345,7 @@ pub fn Token(comptime Payload: type) type {
                     return tokenRaw;
                 },
                 .HS512 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var hmac: [HS512.mac_length]u8 = undefined;
                     if (key) |k| {
                         if (k.len != HS512.key_length) {
@@ -371,7 +371,7 @@ pub fn Token(comptime Payload: type) type {
                     // try writer.writeAll(sst);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -379,7 +379,7 @@ pub fn Token(comptime Payload: type) type {
                     return tokenRaw;
                 },
                 .PS256 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var ps: rs.PS256.KeyPair = undefined;
                     if (key) |k| {
                         ps = try rs.PS256.KeyPair.initFromSecret(try rs.PS256.PrivateKey.fromBytes(k));
@@ -402,7 +402,7 @@ pub fn Token(comptime Payload: type) type {
                     const encodedSig = base64url.Encoder.encode(sigDest, sig);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -410,7 +410,7 @@ pub fn Token(comptime Payload: type) type {
                     return tokenRaw;
                 },
                 .PS384 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var ps: rs.PS384.KeyPair = undefined;
                     if (key) |k| {
                         ps = try rs.PS384.KeyPair.initFromSecret(try rs.PS384.PrivateKey.fromBytes(k));
@@ -431,7 +431,7 @@ pub fn Token(comptime Payload: type) type {
                     const encodedSig = base64url.Encoder.encode(sigDest, sig);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -439,7 +439,7 @@ pub fn Token(comptime Payload: type) type {
                     return tokenRaw;
                 },
                 .PS512 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var ps: rs.PS512.KeyPair = undefined;
                     if (key) |k| {
                         ps = try rs.PS512.KeyPair.initFromSecret(try rs.PS512.PrivateKey.fromBytes(k));
@@ -461,7 +461,7 @@ pub fn Token(comptime Payload: type) type {
                     const encodedSig = base64url.Encoder.encode(sigDest, sig);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -469,7 +469,7 @@ pub fn Token(comptime Payload: type) type {
                     return tokenRaw;
                 },
                 .RS256 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var ps: rs.RS256.KeyPair = undefined;
                     if (key) |k| {
                         ps = try rs.RS256.KeyPair.initFromSecret(try rs.RS256.PrivateKey.fromBytes(k));
@@ -491,7 +491,7 @@ pub fn Token(comptime Payload: type) type {
                     const encodedSig = base64url.Encoder.encode(sigDest, sig);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -499,7 +499,7 @@ pub fn Token(comptime Payload: type) type {
                     return tokenRaw;
                 },
                 .RS384 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var ps: rs.RS384.KeyPair = undefined;
                     if (key) |k| {
                         ps = try rs.RS384.KeyPair.initFromSecret(try rs.RS384.PrivateKey.fromBytes(k));
@@ -521,7 +521,7 @@ pub fn Token(comptime Payload: type) type {
                     const encodedSig = base64url.Encoder.encode(sigDest, sig);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -529,7 +529,7 @@ pub fn Token(comptime Payload: type) type {
                     return tokenRaw;
                 },
                 .RS512 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var ps: rs.RS512.KeyPair = undefined;
                     if (key) |k| {
                         ps = try rs.RS512.KeyPair.initFromSecret(try rs.RS512.PrivateKey.fromBytes(k));
@@ -551,7 +551,7 @@ pub fn Token(comptime Payload: type) type {
                     const encodedSig = base64url.Encoder.encode(sigDest, sig);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -560,7 +560,7 @@ pub fn Token(comptime Payload: type) type {
                 },
 
                 .ES256 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var es: ES256.KeyPair = undefined;
                     if (key) |k| {
                         if (k.len != ES256.SecretKey.encoded_length) {
@@ -588,7 +588,7 @@ pub fn Token(comptime Payload: type) type {
                     // try writer.writeAll(sst);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -596,7 +596,7 @@ pub fn Token(comptime Payload: type) type {
                     return tokenRaw;
                 },
                 .ES384 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var es: ES384.KeyPair = undefined;
                     if (key) |k| {
                         if (k.len != ES384.SecretKey.encoded_length) {
@@ -622,7 +622,7 @@ pub fn Token(comptime Payload: type) type {
                     // try writer.writeAll(sst);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -631,7 +631,7 @@ pub fn Token(comptime Payload: type) type {
                     return tokenRaw;
                 },
                 .none => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     if (t.signature) |s| {
                         t.allocator.free(s);
                     }
@@ -639,7 +639,7 @@ pub fn Token(comptime Payload: type) type {
 
                     try writer.writeByte('.');
 
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -651,14 +651,14 @@ pub fn Token(comptime Payload: type) type {
             }
         }
         pub fn sign(t: *Self, key: ?[]u8) !void {
-            var js = std.ArrayList(u8).init(t.allocator);
-            defer js.deinit();
+            var js = std.ArrayList(u8){};
+            defer js.deinit(t.allocator);
             try t.signingString(&js);
             const sst = js.items;
             // js.clearRetainingCapacity();
             switch (t.header.alg) {
                 .EDDSA => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var edd: eddsa.Eddsa = undefined;
                     if (key) |k| {
                         if (k.len != std.crypto.sign.Ed25519.SecretKey.encoded_length) {
@@ -686,7 +686,7 @@ pub fn Token(comptime Payload: type) type {
                     // try writer.writeAll(sst);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -694,7 +694,7 @@ pub fn Token(comptime Payload: type) type {
                     defer t.allocator.free(tokenRaw);
                 },
                 .HS256 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var hmac: [HS256.mac_length]u8 = undefined;
 
                     if (key) |k| {
@@ -722,7 +722,7 @@ pub fn Token(comptime Payload: type) type {
                     // try writer.writeAll(sst);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -730,7 +730,7 @@ pub fn Token(comptime Payload: type) type {
                     defer t.allocator.free(tokenRaw);
                 },
                 .HS384 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var hmac: [HS384.mac_length]u8 = undefined;
                     if (key) |k| {
                         if (k.len != HS384.key_length) {
@@ -755,7 +755,7 @@ pub fn Token(comptime Payload: type) type {
                     // try writer.writeAll(sst);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -763,7 +763,7 @@ pub fn Token(comptime Payload: type) type {
                     defer t.allocator.free(tokenRaw);
                 },
                 .HS512 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var hmac: [HS512.mac_length]u8 = undefined;
                     if (key) |k| {
                         if (k.len != HS512.key_length) {
@@ -787,7 +787,7 @@ pub fn Token(comptime Payload: type) type {
                     // try writer.writeAll(sst);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -795,7 +795,7 @@ pub fn Token(comptime Payload: type) type {
                     defer t.allocator.free(tokenRaw);
                 },
                 .PS256 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var ps: rs.PS256.KeyPair = undefined;
                     if (key) |k| {
                         ps = try rs.PS256.KeyPair.initFromSecret(try rs.PS256.PrivateKey.fromBytes(k));
@@ -818,7 +818,7 @@ pub fn Token(comptime Payload: type) type {
                     const encodedSig = base64url.Encoder.encode(sigDest, sig);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -827,7 +827,7 @@ pub fn Token(comptime Payload: type) type {
                 },
 
                 .PS384 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var ps: rs.PS384.KeyPair = undefined;
                     if (key) |k| {
                         ps = try rs.PS384.KeyPair.initFromSecret(try rs.PS384.PrivateKey.fromBytes(k));
@@ -848,7 +848,7 @@ pub fn Token(comptime Payload: type) type {
                     const encodedSig = base64url.Encoder.encode(sigDest, sig);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -856,7 +856,7 @@ pub fn Token(comptime Payload: type) type {
                     defer t.allocator.free(tokenRaw);
                 },
                 .PS512 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var ps: rs.PS512.KeyPair = undefined;
                     if (key) |k| {
                         ps = try rs.PS512.KeyPair.initFromSecret(try rs.PS512.PrivateKey.fromBytes(k));
@@ -877,7 +877,7 @@ pub fn Token(comptime Payload: type) type {
                     const encodedSig = base64url.Encoder.encode(sigDest, sig);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -885,7 +885,7 @@ pub fn Token(comptime Payload: type) type {
                     defer t.allocator.free(tokenRaw);
                 },
                 .RS256 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var ps: rs.RS256.KeyPair = undefined;
                     if (key) |k| {
                         ps = try rs.RS256.KeyPair.initFromSecret(try rs.RS256.PrivateKey.fromBytes(k));
@@ -906,7 +906,7 @@ pub fn Token(comptime Payload: type) type {
                     const encodedSig = base64url.Encoder.encode(sigDest, sig);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -914,7 +914,7 @@ pub fn Token(comptime Payload: type) type {
                     defer t.allocator.free(tokenRaw);
                 },
                 .RS384 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var ps: rs.RS384.KeyPair = undefined;
                     if (key) |k| {
                         ps = try rs.RS384.KeyPair.initFromSecret(try rs.RS384.PrivateKey.fromBytes(k));
@@ -935,7 +935,7 @@ pub fn Token(comptime Payload: type) type {
                     const encodedSig = base64url.Encoder.encode(sigDest, sig);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -943,7 +943,7 @@ pub fn Token(comptime Payload: type) type {
                     defer t.allocator.free(tokenRaw);
                 },
                 .RS512 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var ps: rs.RS512.KeyPair = undefined;
                     if (key) |k| {
                         ps = try rs.RS512.KeyPair.initFromSecret(try rs.RS512.PrivateKey.fromBytes(k));
@@ -964,7 +964,7 @@ pub fn Token(comptime Payload: type) type {
                     const encodedSig = base64url.Encoder.encode(sigDest, sig);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -972,7 +972,7 @@ pub fn Token(comptime Payload: type) type {
                     defer t.allocator.free(tokenRaw);
                 },
                 .ES256 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var es: ES256.KeyPair = undefined;
                     if (key) |k| {
                         if (k.len != ES256.SecretKey.encoded_length) {
@@ -996,7 +996,7 @@ pub fn Token(comptime Payload: type) type {
                     // try writer.writeAll(sst);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -1004,7 +1004,7 @@ pub fn Token(comptime Payload: type) type {
                     defer t.allocator.free(tokenRaw);
                 },
                 .ES384 => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     var es: ES384.KeyPair = undefined;
                     if (key) |k| {
                         if (k.len != ES384.SecretKey.encoded_length) {
@@ -1030,7 +1030,7 @@ pub fn Token(comptime Payload: type) type {
                     // try writer.writeAll(sst);
                     try writer.writeByte('.');
                     try writer.writeAll(encodedSig);
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }
@@ -1039,14 +1039,14 @@ pub fn Token(comptime Payload: type) type {
                     defer t.allocator.free(tokenRaw);
                 },
                 .none => {
-                    const writer = js.writer();
+                    const writer = js.writer(t.allocator);
                     if (t.signature) |s| {
                         t.allocator.free(s);
                     }
                     t.signature = null;
                     try writer.writeByte('.');
 
-                    const tokenRaw = try js.toOwnedSlice();
+                    const tokenRaw = try js.toOwnedSlice(t.allocator);
                     if (t.raw) |old_raw| {
                         t.allocator.free(old_raw);
                     }

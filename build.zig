@@ -23,48 +23,68 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const lib = b.addStaticLibrary(.{
+    const lib = b.addLibrary(.{
         .name = "jwt",
         .root_module = lib_mod,
-        .link_libc = true,
+        .linkage = .static,
     });
 
     b.installArtifact(lib);
 
-    const unit_tests_1 = b.addTest(.{
+    const unit_tests_1_module = b.createModule(.{
         .root_source_file = b.path("test_jwt.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
+    const unit_tests_1 = b.addTest(.{
+        .name = "test_jwt",
+        .root_module = unit_tests_1_module,
+    });
 
-    const unit_tests_2 = b.addTest(.{
+    const unit_tests_2_module = b.createModule(.{
         .root_source_file = b.path("test_payload.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
+    const unit_tests_2 = b.addTest(.{
+        .name = "test_payload",
+        .root_module = unit_tests_2_module,
+    });
 
-    const unit_tests_3 = b.addTest(.{
+    const unit_tests_3_module = b.createModule(.{
         .root_source_file = b.path("test_parse.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
+    const unit_tests_3 = b.addTest(.{
+        .name = "test_parse",
+        .root_module = unit_tests_3_module,
+    });
     unit_tests_1.root_module.addImport("cricket", cricket.module("cricket"));
     lib_mod.addImport("cricket", cricket.module("cricket"));
 
-    const rsa_test = b.addTest(.{
+    const rsa_test_module = b.createModule(.{
         .root_source_file = b.path("rsa.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
-    const jwt_test = b.addTest(.{
+    const rsa_test = b.addTest(.{
+        .name = "rsa",
+        .root_module = rsa_test_module,
+    });
+    const jwt_test_module = b.createModule(.{
         .root_source_file = b.path("jwt.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
+    });
+    const jwt_test = b.addTest(.{
+        .name = "jwt",
+        .root_module = jwt_test_module,
     });
     lib_mod.linkSystemLibrary("ssl", .{});
     lib_mod.linkSystemLibrary("crypto", .{});

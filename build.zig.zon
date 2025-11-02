@@ -1,13 +1,12 @@
 .{
     .name = .jwt_zig,
     .version = "0.5.7",
+    .minimum_zig_version = "0.15.1",
     .fingerprint = 0x53e61c40931e6c6,
     .dependencies = .{
         .cricket = .{
-            .url = "https://github.com/NikoMalik/cricket.zig/archive/refs/heads/main.tar.gz",
-            .hash = "1220adf7baed2f328cc3a920ad2e209e4fcca445bd40efc4f420856deacfc6a96c26",
-
-
+            .url = "git+https://github.com/SOG-web/cricket.zig?ref=main#76d2932eea97990d0f32eddc42313efec7dcae42",
+            .hash = "cricket-0.1.0-5FtPxP_4AAAcjtkEYqxbDiHh5KfnjSm53GO1jdALnVw9",
         },
     },
     .paths = .{""},
