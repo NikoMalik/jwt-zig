@@ -18,7 +18,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
-    lib_mod.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
     const cricket = b.dependency("cricket", .{
         .target = target,
         .optimize = optimize,
@@ -73,7 +72,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
-    rsa_test_module.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
+    rsa_test_module.linkSystemLibrary("ssl", .{});
     const rsa_test = b.addTest(.{
         .name = "rsa",
         .root_module = rsa_test_module,
@@ -84,7 +83,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
-    jwt_test_module.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
+    jwt_test_module.linkSystemLibrary("ssl", .{});
     const jwt_test = b.addTest(.{
         .name = "jwt",
         .root_module = jwt_test_module,
@@ -92,25 +91,16 @@ pub fn build(b: *std.Build) void {
     lib_mod.linkSystemLibrary("ssl", .{});
     lib_mod.linkSystemLibrary("crypto", .{});
 
-    lib.linkLibC();
-    lib.linkSystemLibrary("ssl");
-    lib.linkSystemLibrary("crypto");
-
     jwt_test.linkSystemLibrary("ssl");
     jwt_test.linkSystemLibrary("crypto");
-    jwt_test.linkLibC();
-    rsa_test.linkLibC();
 
     rsa_test.linkSystemLibrary("ssl");
     rsa_test.linkSystemLibrary("crypto");
 
     unit_tests_3.linkSystemLibrary("ssl");
     unit_tests_3.linkSystemLibrary("crypto");
-    unit_tests_3.linkLibC();
-    unit_tests_2.linkLibC();
     unit_tests_1.linkSystemLibrary("ssl");
     unit_tests_1.linkSystemLibrary("crypto");
-    unit_tests_1.linkLibC();
 
     // tests running
     // ============
@@ -137,13 +127,12 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
     example_jwks_module.addImport("jwt", lib_mod);
-    example_jwks_module.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
+    example_jwks_module.linkSystemLibrary("ssl", .{});
 
     const example_jwks_exe = b.addExecutable(.{
         .name = "example_jwks",
         .root_module = example_jwks_module,
     });
-    example_jwks_exe.linkLibC();
     example_jwks_exe.linkSystemLibrary("ssl");
     example_jwks_exe.linkSystemLibrary("crypto");
 
@@ -166,7 +155,6 @@ pub fn build(b: *std.Build) void {
         .name = "example_db_storage",
         .root_module = example_db_module,
     });
-    example_db_exe.linkLibC();
     example_db_exe.linkSystemLibrary("ssl");
     example_db_exe.linkSystemLibrary("crypto");
 

@@ -2,3 +2,4 @@
 zig-out/
 *.der
 .DS_Store
+*.DS_Store

@@ -1,7 +1,7 @@
 @echo off
 
 
-set ZIG_RELEASE_DEFAULT=0.13.0
+set ZIG_RELEASE_DEFAULT=0.15.2
 
 
 if "%~1"=="" (
