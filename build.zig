@@ -10,7 +10,7 @@ const crypto_lib: CryptoLib = .openssl;
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
 
-    const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .ReleaseSafe });
+    const optimize = b.standardOptimizeOption(.{});
 
     const lib_mod = b.addModule("jwt", .{
         .root_source_file = b.path("root.zig"),
@@ -18,53 +18,76 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
+    lib_mod.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
     const cricket = b.dependency("cricket", .{
         .target = target,
         .optimize = optimize,
     });
 
-    const lib = b.addStaticLibrary(.{
+    const lib = b.addLibrary(.{
         .name = "jwt",
         .root_module = lib_mod,
-        .link_libc = true,
+        .linkage = .static,
     });
 
     b.installArtifact(lib);
 
-    const unit_tests_1 = b.addTest(.{
+    const unit_tests_1_module = b.createModule(.{
         .root_source_file = b.path("test_jwt.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
+    const unit_tests_1 = b.addTest(.{
+        .name = "test_jwt",
+        .root_module = unit_tests_1_module,
+    });
 
-    const unit_tests_2 = b.addTest(.{
+    const unit_tests_2_module = b.createModule(.{
         .root_source_file = b.path("test_payload.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
+    const unit_tests_2 = b.addTest(.{
+        .name = "test_payload",
+        .root_module = unit_tests_2_module,
+    });
 
-    const unit_tests_3 = b.addTest(.{
+    const unit_tests_3_module = b.createModule(.{
         .root_source_file = b.path("test_parse.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
+    const unit_tests_3 = b.addTest(.{
+        .name = "test_parse",
+        .root_module = unit_tests_3_module,
+    });
     unit_tests_1.root_module.addImport("cricket", cricket.module("cricket"));
     lib_mod.addImport("cricket", cricket.module("cricket"));
 
-    const rsa_test = b.addTest(.{
+    const rsa_test_module = b.createModule(.{
         .root_source_file = b.path("rsa.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
-    const jwt_test = b.addTest(.{
+    rsa_test_module.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
+    const rsa_test = b.addTest(.{
+        .name = "rsa",
+        .root_module = rsa_test_module,
+    });
+    const jwt_test_module = b.createModule(.{
         .root_source_file = b.path("jwt.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
+    });
+    jwt_test_module.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
+    const jwt_test = b.addTest(.{
+        .name = "jwt",
+        .root_module = jwt_test_module,
     });
     lib_mod.linkSystemLibrary("ssl", .{});
     lib_mod.linkSystemLibrary("crypto", .{});
@@ -105,4 +128,51 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_unit_test4.step);
 
     test_step.dependOn(&run_unit_test5.step);
+
+    // Example: JWKS flow
+    const example_jwks_module = b.createModule(.{
+        .root_source_file = b.path("example_jwks.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    example_jwks_module.addImport("jwt", lib_mod);
+    example_jwks_module.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
+
+    const example_jwks_exe = b.addExecutable(.{
+        .name = "example_jwks",
+        .root_module = example_jwks_module,
+    });
+    example_jwks_exe.linkLibC();
+    example_jwks_exe.linkSystemLibrary("ssl");
+    example_jwks_exe.linkSystemLibrary("crypto");
+
+    b.installArtifact(example_jwks_exe);
+
+    const run_example_jwks = b.addRunArtifact(example_jwks_exe);
+    const example_step = b.step("example", "Run JWKS example");
+    example_step.dependOn(&run_example_jwks.step);
+
+    // Example: DB storage
+    const example_db_module = b.createModule(.{
+        .root_source_file = b.path("example_db_storage.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    example_db_module.addSystemIncludePath(.{ .cwd_relative = "/usr/local/opt/openssl@3/include" });
+
+    const example_db_exe = b.addExecutable(.{
+        .name = "example_db_storage",
+        .root_module = example_db_module,
+    });
+    example_db_exe.linkLibC();
+    example_db_exe.linkSystemLibrary("ssl");
+    example_db_exe.linkSystemLibrary("crypto");
+
+    b.installArtifact(example_db_exe);
+
+    const run_example_db = b.addRunArtifact(example_db_exe);
+    const example_db_step = b.step("example_db", "Run DB storage example");
+    example_db_step.dependOn(&run_example_db.step);
 }

@@ -30,9 +30,9 @@ pub fn CustomPayload(comptime ExtraFields: type) type {
             _ = self;
         }
         pub fn marshalJSON_PAYLOAD(self: Self) ![]const u8 {
-            var js = std.ArrayList(u8).init(self.allocator);
-            defer js.deinit();
-            var writer = js.writer();
+            var js = std.ArrayList(u8){};
+            defer js.deinit(self.allocator);
+            var writer = js.writer(self.allocator);
 
             try writer.writeAll("{");
 
@@ -83,7 +83,7 @@ pub fn CustomPayload(comptime ExtraFields: type) type {
 
             try writer.writeAll("}");
 
-            return js.toOwnedSlice();
+            return js.toOwnedSlice(self.allocator);
         }
         pub fn unmarshalPayload(self: *Self) ![]const u8 {
             const info = try self.marshalJSON();
@@ -344,9 +344,9 @@ pub const Payload = struct {
     }
 
     pub fn marshalJSON_PAYLOAD(p: Payload) ![]const u8 {
-        var js = std.ArrayList(u8).init(p.allocator);
-        defer js.deinit();
-        var writer = js.writer();
+        var js = std.ArrayList(u8){};
+        defer js.deinit(p.allocator);
+        var writer = js.writer(p.allocator);
 
         try writer.writeAll("{");
 
@@ -420,7 +420,7 @@ pub const Payload = struct {
         }
 
         try writer.writeAll("}");
-        return js.toOwnedSlice();
+        return js.toOwnedSlice(p.allocator);
     }
 
     pub fn unmsarshalPayload(p: *const Payload) ![]const u8 {

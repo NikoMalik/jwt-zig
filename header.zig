@@ -23,9 +23,9 @@ pub const Header = struct {
     }
 
     pub fn marshalJSON(h: *const Header) ![]const u8 {
-        var js = std.ArrayList(u8).init(h.allocator);
-        defer js.deinit();
-        var writer = js.writer();
+        var js = std.ArrayList(u8){};
+        defer js.deinit(h.allocator);
+        var writer = js.writer(h.allocator);
 
         try writer.writeAll("{");
 
@@ -51,7 +51,7 @@ pub const Header = struct {
 
         try writer.writeAll("}");
 
-        return js.toOwnedSlice();
+        return js.toOwnedSlice(h.allocator);
     }
 
     pub fn unmarshalHeader(h: *const Header) ![]const u8 {

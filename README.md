@@ -2,7 +2,7 @@
 
 ![Github Repo Issues](https://img.shields.io/github/issues/NikoMalik/jwt-zig?style=flat) ![GitHub Repo stars](https://img.shields.io/github/stars/NikoMalik/jwt-zig?style=social)
 
-*WINDOWS NOT SUPPORTED*
+_WINDOWS NOT SUPPORTED_
 
 A lightweight and performant JSON Web Token (JWT) library written in Zig. This library provides a simple, type-safe API for creating, signing, verifying, and parsing JWTs. It's designed to leverage Zig’s compile‐time safety and efficient memory management.
 
@@ -12,14 +12,13 @@ A lightweight and performant JSON Web Token (JWT) library written in Zig. This l
 
 This library is built with simplicity and efficiency in mind. Whether you're building an API server or a command-line tool, our JWT library helps you manage token‐based authentication seamlessly with minimal overhead.
 
-
 ---
 
-# Zig Version 
-Zig >= 0.14.0
+# Zig Version
+
+Zig >= 0.15.0
 
 ## Features 🔥
-
 
 - **Token Creation & Signing:** Easily create tokens with customizable headers and payloads.
 - **Verification:** Securely verify token signatures and check expiration dates.
@@ -28,32 +27,24 @@ Zig >= 0.14.0
 - **Compile-time Safety:** Benefit from Zig’s compile-time type safety.
 - **Efficient Memory Management:** Uses Zig’s allocator interface for optimal resource handling.
 
-
 ---
 
 ## Algorithms 🔑
 
-
-
-
-- ✅        | none          | No digital signature or MAC value included |
-- ✅        | HS256         | HMAC using SHA-256 hash algorithm |
-- ✅        | HS384         | HMAC using SHA-384 hash algorithm |
-- ✅        | HS512         | HMAC using SHA-512 hash algorithm |
-- ✅        | ES256         | ECDSA using P-256 curve and SHA-256 hash algorithm |
-- ✅        | EdDsa         | Edwards curve digital signature algorithm and SHA-512 hash algorithm |
-- ✅        | ES384         | ECDSA using P-384 curve and SHA-384 hash algorithm |
-- ✅        | PS256         | RSASSA-PSS using SHA-256 hash algorithm |
-- ❌        | ES512         | ECDSA using P-521 curve and SHA-512 hash algorithm |
-- ✅        | PS384         | RSASSA-PSS using SHA-384 hash algorithm |
-- ✅        | PS512         | RSASSA-PSS using SHA-512 hash algorithm |
-- ✅        | RS256         | RSASSA-PKCS1-v1_5 using SHA-256 hash algorithm |
-- ✅        | RS384         | RSASSA-PKCS1-v1_5 using SHA-384 hash algorithm |
-- ✅        | RS512         | RSASSA-PKCS1-v1_5 using SHA-512 hash algorithm |
-
-
-
-
+- ✅ | none | No digital signature or MAC value included |
+- ✅ | HS256 | HMAC using SHA-256 hash algorithm |
+- ✅ | HS384 | HMAC using SHA-384 hash algorithm |
+- ✅ | HS512 | HMAC using SHA-512 hash algorithm |
+- ✅ | ES256 | ECDSA using P-256 curve and SHA-256 hash algorithm |
+- ✅ | EdDsa | Edwards curve digital signature algorithm and SHA-512 hash algorithm |
+- ✅ | ES384 | ECDSA using P-384 curve and SHA-384 hash algorithm |
+- ✅ | PS256 | RSASSA-PSS using SHA-256 hash algorithm |
+- ❌ | ES512 | ECDSA using P-521 curve and SHA-512 hash algorithm |
+- ✅ | PS384 | RSASSA-PSS using SHA-384 hash algorithm |
+- ✅ | PS512 | RSASSA-PSS using SHA-512 hash algorithm |
+- ✅ | RS256 | RSASSA-PKCS1-v1_5 using SHA-256 hash algorithm |
+- ✅ | RS384 | RSASSA-PKCS1-v1_5 using SHA-384 hash algorithm |
+- ✅ | RS512 | RSASSA-PKCS1-v1_5 using SHA-512 hash algorithm |
 
 ## Installation 📦
 
@@ -68,17 +59,13 @@ Zig >= 0.14.0
 
 ```
 
-
 `zig fetch --save https://github.com/NikoMalik/jwt-zig/archive/refs/tags/0.5.5.tar.gz`
 
 `zig fetch --save https://github.com/NikoMalik/jwt-zig/archive/refs/heads/main.tar.gz`
 
-
-
 ### or
 
-
-```zig
+````zig
 .dependencies = .{
     .jwt = .{
         .url = "https://github.com/NikoMalik/jwt-zig/archive/refs/tags/0.5.5.tar.gz",
@@ -86,7 +73,7 @@ Zig >= 0.14.0
     }
 }
 
-```zig 
+```zig
 
 .dependencies = .{
     .jwt = .{
@@ -98,12 +85,9 @@ Zig >= 0.14.0
 
 
 
-```
+````
 
-
-
-# Installation/2 📦 
-
+# Installation/2 📦
 
 ```bash
 
@@ -112,14 +96,9 @@ mv jwt-zig /path/to/your/project/directory
 
 ```
 
-
-
-
-
-
 ---
-# Usage 🛠
 
+# Usage 🛠
 
 ### Registered Payload
 
@@ -163,13 +142,14 @@ pub fn main() !void {
     try jwtToken.sign(privateBytes[0..]); // or  signToken to get full copy jwt raw
 
     const verify = try jwtToken.verifyToken(publicBytes[0..]);
-    
+
     assert(verify);
 }
 
 ```
 
 ---
+
 ### Custom Payload
 
 ```zig
@@ -180,16 +160,16 @@ const customPayload = struct {
 };
 
 pub fn main() !void {
-    
-   
+
+
     var alloc = std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }){};
     defer _ = alloc.deinit();
     const allocator = alloc.allocator();
     const leaks = alloc.detectLeaks();
 
 
-    
-  
+
+
     //header init
     const header = head.Header.init(allocator, typ.Type.JWT, typ.Algorithm.ES256, .{ .kid = "kid" });
 
@@ -219,7 +199,7 @@ pub fn main() !void {
 
 ```
 
-# Another example 
+# Another example
 
 ```zig
 
@@ -270,11 +250,9 @@ pub fn main() !void {
 
 ```
 
-
 ---
 
-
-# Parsing a Token 
+# Parsing a Token
 
 ```zig
 
@@ -308,19 +286,172 @@ pub fn main() void {
 }
 ```
 
+# JWKS-Style Token Verification 🔐
 
+This library supports JWKS-style token verification for server-to-server authentication scenarios. The library includes a reusable `client.zig` module with helper functions for extracting Key IDs (kids), parsing JWKS JSON, and creating JWKS endpoints.
 
+## Available Client Functions
 
+- **`JwksClient.extractKid(token, allocator)`** - Extract the Key ID from a JWT header
+- **`JwksClient.parseJwks(jwks_json, allocator)`** - Parse JWKS JSON into a structured format
+- **`JwksClient.findKeyByKid(jwks, kid)`** - Find a specific key by its Key ID
+- **`JwksClient.deinit(jwks, allocator)`** - Free JWKS memory
+- **`createJwksJson(n_hex, e_hex, kid, alg, allocator)`** - Create JWKS JSON from RSA key parameters
+
+## Complete Example
+
+```zig
+const std = @import("std");
+const jwt = @import("jwt");
+const rsa = @import("rsa.zig");
+const time = @import("time.zig");
+const client = @import("client.zig");
+
+const base64url = client.base64url;
+const JwksClient = client.JwksClient;
+const createJwksJson = client.createJwksJson;
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Auth server: Generate key and sign token
+    const rsa_algo = rsa.RSAAlgorithm(2048, .RSASSA_PKCS1_v1_5, .sha256);
+    var priv_key = try rsa_algo.generateKey();
+    defer priv_key.deinit();
+    var pub_key = try priv_key.publicKey();
+    defer pub_key.deinit();
+
+    // Export public key to PEM
+    const pub_key_pem = try rsa.exportPublicKey(pub_key.key, allocator);
+    defer allocator.free(pub_key_pem);
+
+    // Sign a token with kid
+    const header = jwt.header.Header.init(allocator, jwt.typ.Type.JWT, jwt.typ.Algorithm.RS256, .{ .kid = "key-id-1" });
+    const now = @as(u64, @intCast(std.time.timestamp()));
+    const payload = jwt.payload.Payload{
+        .allocator = allocator,
+        .sub = "service-abc",
+        .iss = "https://auth.example.com",
+        .exp = time.NumericDate.init(allocator, now + 3600),
+    };
+    var jwt_token = jwt.jwt.Token(jwt.payload.Payload).init(allocator, header, payload);
+    defer jwt_token.deinit();
+
+    var der_buffer: [4096]u8 = undefined;
+    const private_bytes = try priv_key.toBytes(&der_buffer);
+    const signed_token = try jwt_token.signToken(private_bytes);
+    defer allocator.free(signed_token);
+
+    // Create JWKS JSON for the public key
+    const ne = try pub_key.getModulusAndExponent(allocator);
+    defer allocator.free(ne.n);
+    defer allocator.free(ne.e);
+    const jwks_json = try createJwksJson(ne.n, ne.e, "key-id-1", "RS256", allocator);
+    defer allocator.free(jwks_json);
+
+    // Resource server: Extract kid and parse JWKS
+    const token_kid = try JwksClient.extractKid(signed_token, allocator);
+    defer if (token_kid) |kid| allocator.free(kid);
+
+    const jwks = try JwksClient.parseJwks(allocator, jwks_json);
+    defer JwksClient.deinit(jwks, allocator);
+
+    const jwk = if (token_kid) |kid| JwksClient.findKeyByKid(jwks, kid) else null;
+    if (jwk == null) return error.KeyNotFound;
+
+    // Parse and verify token
+    var iter = std.mem.splitSequence(u8, signed_token, ".");
+    _ = iter.first();
+    _ = iter.next();
+    const sig_b64 = iter.next() orelse return error.InvalidTokenFormat;
+    const sig_decoded_size = base64url.Decoder.calcSizeForSlice(sig_b64) catch 0;
+    var sig_buffer: [512]u8 = undefined;
+    _ = try base64url.Decoder.decode(sig_buffer[0..sig_decoded_size], sig_b64);
+
+    var parsed_token = try jwt.parse.parseToken(
+        jwt.payload.Payload,
+        allocator,
+        signed_token,
+        sig_buffer[0..sig_decoded_size]
+    );
+    defer parsed_token.deinit();
+
+    const verification_pub_key = try rsa_algo.PublicKey.fromPem_Der(pub_key_pem);
+    defer verification_pub_key.deinit();
+    const pub_key_der = try verification_pub_key.toBytes(&der_buffer);
+    const is_valid = try parsed_token.verifyToken(pub_key_der);
+
+    std.debug.print("Token verified: {}\n", .{is_valid});
+}
+```
+
+Run the complete example: `zig build example`
+
+# Database Storage of Keys 💾
+
+RSA keys can be serialized to DER format for storage in databases and restored later. This is useful for key management across application restarts or for distributing keys between services.
+
+## Available Methods
+
+- **`PrivateKey.toBytes(out)`** - Serialize private key to DER bytes
+- **`PrivateKey.fromBytes(raw)`** - Deserialize private key from DER bytes
+- **`PublicKey.toBytes(out)`** - Serialize public key to DER bytes
+- **`PublicKey.fromBytes(raw)`** - Deserialize public key from DER bytes
+
+## Example
+
+```zig
+const std = @import("std");
+const rsa = @import("rsa.zig");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    const rsa_algo = rsa.RSAAlgorithm(2048, .RSASSA_PKCS1_v1_5, .sha256);
+
+    // Generate key pair
+    var priv_key = try rsa_algo.generateKey();
+    defer priv_key.deinit();
+    var pub_key = try priv_key.publicKey();
+    defer pub_key.deinit();
+
+    // Serialize keys to DER bytes (for database storage)
+    var priv_buffer: [4096]u8 = undefined;
+    const priv_bytes = try priv_key.toBytes(&priv_buffer);
+
+    var pub_buffer: [4096]u8 = undefined;
+    const pub_bytes = try pub_key.toBytes(&pub_buffer);
+
+    // Store in database:
+    // INSERT INTO keys (private_key, public_key) VALUES (priv_bytes, pub_bytes);
+
+    // Load from database later:
+    const loaded_priv_key = try rsa_algo.PrivateKey.fromBytes(priv_bytes);
+    defer loaded_priv_key.deinit();
+
+    const loaded_pub_key = try rsa_algo.PublicKey.fromBytes(pub_bytes);
+    defer loaded_pub_key.deinit();
+
+    // Use the loaded keys for signing/verification
+    const msg = "test message";
+    var sig: rsa_algo.Signature = undefined;
+    const sig_len = try loaded_priv_key.sign(msg, &sig);
+    try rsa_algo.verify(loaded_pub_key, msg, sig[0..sig_len]);
+}
+```
+
+Run the complete example: `zig build example_db`
 
 # Memory Management 🧠
 
 This library uses Zig's allocator interface to manage memory. When using functions like allocator.dupe(), the allocated memory must be freed by calling the corresponding deinitialization method (e.g., deinit()). Always call deinit() on tokens and parsed objects when they're no longer needed to prevent memory leaks.
 
-
 # Contributing 🤝
 
 Contributions are welcome! Please fork the repository, open issues, or submit pull requests with your improvements or bug fixes. Follow the project's coding style and include tests for any changes.
-
 
 # License 📜
 
@@ -330,7 +461,3 @@ This library is distributed under the [MIT License](https://opensource.org/licen
 
 - Inspired by various JWT libraries in different languages.
 - Built using Zig’s modern, safe, and efficient design principles.
-
-
-
-
